@@ -1,0 +1,5 @@
+# ------------------------------------------
+# SPDX-License-Identifier: MIT OR Apache-2.0
+# ------------------------------------------
+[profile.default]
+slow-timeout = { period = "5s", terminate-after = 3 }

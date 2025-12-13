@@ -1,0 +1,133 @@
+[env]
+_.source = ".config/env.sh"
+
+[tools]
+"mold" = "latest"
+act = "latest"
+
+[tools.rust]
+# keep in sync with bevy_cli
+version = "nightly-2025-10-31"
+components = "rustc-codegen-cranelift-preview,rustc-dev,llvm-tools-preview,clippy"
+targets = "x86_64-pc-windows-msvc,x86_64-unknown-linux-gnu"
+
+[tasks.install_bevy_lint]
+hide = true
+run = """
+rustup run nightly-2025-10-31 cargo install \
+    --git https://github.com/TheBevyFlock/bevy_cli.git \
+    --locked \
+    bevy_lint || true
+"""
+
+
+## CHECKS #####################################################################
+
+[tasks."check:deps"]
+alias = "deny"
+tools = { "cargo:cargo-deny" = "latest" }
+description = "Check dependencies with cargo-deny"
+run = """
+cargo deny --workspace \
+    -L error \
+    check advisories bans sources \
+    --hide-inclusion-graph
+"""
+
+[tasks.bevy_lint]
+hide = true
+depends = ["install_bevy_lint"]
+usage = """
+    arg "<pkg>" var=#true default=app
+    flag "--fix"
+"""
+run = """
+RUSTC_WRAPPER="sccache"
+CARGO=$(rustup which --toolchain nightly-2025-06-26 cargo) bevy_lint
+FIX=${usage_fix:+--fix}
+bevy_lint --locked --all-features --target-dir=target/bevy_lint \
+    $FIX -p ${usage_pkg}
+"""
+
+[tasks.clippy]
+hide = true
+usage = """
+    arg "<pkg>" var=#true default=app
+    flag "--fix"
+"""
+run = """
+RUSTC_WRAPPER="sccache"
+FIX=${usage_fix:+--fix}
+cargo --color=always clippy --locked --all-features --target-dir=target/clippy \
+    $FIX -p ${usage_pkg}
+"""
+
+[tasks.check]
+description = "Lint package(s) with Clippy and bevy_lint. (Default: app)"
+alias = "check-app"
+sources = ["src"]
+usage = """
+    arg "<pkg>" var=#true default=app
+"""
+raw = true
+run = """
+mise clippy -p ${usage_pkg} ::: bevy_lint -p ${usage_pkg}
+"""
+
+
+## FIXES ######################################################################
+
+[tasks."fix:rust"]
+alias = "fix-rust"
+description = "Fix any fixable issues in rust. Includes formatting."
+depends = ["check --fix"]
+
+[tasks.fix]
+description = "Fix all fixable issues."
+depends = ["fix:rust"]
+
+## BUILD AND DEPLOY ###########################################################
+
+[tasks.ci]
+tools = { "act" = "latest" }
+description = "Test CI locally with nektos/act"
+run = "act -P ubuntu-24.04=ghcr.io/catthehacker/ubuntu:act-24.04"
+
+[tasks.test]
+tools = { "cargo:cargo-nextest" = "latest" }
+description = "Run tests for a specific package or all packages"
+usage = """
+    flag "--rust-log <rust_log>" env="RUST_LOG" default="app=debug"
+    arg "[rest]" double_dash = "required" default="" help="Passed directly to `cargo nextest`. Use `mise test -- help` for nextest help."
+"""
+run = """
+    if [ -n "${usage_rest?}" ]; then
+        RUST_LOG=${usage_rust_log?} cargo nextest ${usage_rest?}
+    else
+        RUST_LOG=${usage_rust_log?} cargo nextest run --workspace
+    fi
+"""
+
+# LOCAL #######################################################################
+
+[tasks.build]
+description = "Cargo build."
+env = { "RUSTC_WRAPPER" = "sccache" }
+tools = { "sccache" = "latest" }
+usage = """
+    arg "[args]" help="Args passed to cargo build. Run `cargo build --help` for more info."
+"""
+run = """
+cargo build ${usage_args}
+"""
+
+[tasks.play]
+description = "Cargo run."
+env = { "RUSTC_WRAPPER" = "sccache" }
+tools = { "sccache" = "latest" }
+usage = """
+    arg "[args]" help="Args passed to cargo run. Run `cargo run --help` for more info."
+"""
+run = """
+cargo run ${usage_args}
+"""

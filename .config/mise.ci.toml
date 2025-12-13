@@ -1,0 +1,27 @@
+# Disable sccache
+[tasks.bevy_lint]
+hide = true
+depends = ["install_bevy_lint"]
+usage = """
+    arg "<pkg>" var=#true default=app
+    flag "--fix"
+"""
+run = """
+RUSTC_WRAPPER=""
+FIX=${usage_fix:+--fix}
+bevy_lint --locked --all-features \
+    $FIX -p ${usage_pkg};
+"""
+
+[tasks.clippy]
+hide = true
+usage = """
+    arg "<pkg>" var=#true default=app
+    flag "--fix"
+"""
+run = """
+RUSTC_WRAPPER="";
+FIX=${usage_fix:+--fix}
+cargo --color=always clippy --locked --all-features \
+    $FIX -p ${usage_pkg}
+"""

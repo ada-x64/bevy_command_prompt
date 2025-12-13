@@ -1,0 +1,21 @@
+# SSH #########################################################################
+
+[env]
+_.file = {path = ".config/.env.json", redact = true }
+_.source = {path="~/.profile", redact=true}
+
+[tools]
+sops = "latest"
+age = "latest"
+'pipx:cubething_psync' = "0.4.1"
+
+[tasks.play]
+description="Run the application (SSH)"
+usage = """
+    flag "--build-args -B <args>" default="--example basic"
+    flag "--psync-args -P <args>" default="-p target/debug/examples/basic"
+"""
+run = """
+mise build ${usage_build_args}
+psync-client ${usage_psync_args}
+"""
