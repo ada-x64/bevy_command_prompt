@@ -1,3 +1,7 @@
+<div align="center">
+<img src="./.doc/logo.png" height=250 alt="Logo - 'bevy command prompt' over a sketch of a green magpie" />
+</div>
+
 This is an attempt at a bevy_ui-native dev console inspired by [makspll/bevy-console](https://github.com/makspll/bevy-console).
 
 ## Features
@@ -31,3 +35,12 @@ They should be reusable as common events in the world.
 
 Devex comes first. This means that the console experience should be smooth and appealing to the game developer.
 This may require sacrificing 'realism' e.g. the signal/async support above in favor of one-shot execution.
+
+## About the bird
+
+The bird on the logo is a [green
+magpie](https://en.wikipedia.org/wiki/Common_green_magpie), a common species of
+the crow family known for their intelligence and small size. The illustration is
+from the [Big Book of Bird
+Illustrations](https://www.overdrive.com/media/1405297/big-book-of-bird-illustrations)
+by Maggie Kate.
