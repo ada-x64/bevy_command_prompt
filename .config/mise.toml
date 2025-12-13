@@ -115,7 +115,7 @@ description = "Cargo build."
 env = { "RUSTC_WRAPPER" = "sccache" }
 tools = { "sccache" = "latest" }
 usage = """
-    arg "[args]" help="Args passed to cargo build. Run `cargo build --help` for more info."
+    arg "[args]" help="Args passed to cargo build. Run `cargo build --help` for more info." var=#true
 """
 run = """
 cargo build ${usage_args}
