@@ -1,7 +1,6 @@
-use bevy::{prelude::*, ui::ui_layout_system};
+use crate::prelude::*;
+use bevy::ui::ui_layout_system;
 use bevy_simple_text_input::TextInputSubmitMessage;
-
-use crate::ui::prelude::*;
 
 /// submission event reader
 /// this must occur after [TextInputSystem](bevy_simple_text_input::TextInputSystem),
@@ -15,7 +14,6 @@ fn on_submit_msg(
         // note: txtinput value cleared on submit
         if filter.iter().any(|e| e == msg.entity) {
             commands.trigger(CallConsoleCommand(msg.value.clone()));
-            commands.trigger(AppendToConsole(msg.value.clone()));
         }
     }
 }

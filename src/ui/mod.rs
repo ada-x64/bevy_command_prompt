@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use crate::prelude::*;
 use bevy_simple_text_input::TextInputPlugin;
 
 mod bundle;
@@ -13,4 +13,5 @@ pub mod prelude {
 
 pub fn plugin(app: &mut App) {
     app.add_plugins((TextInputPlugin, events::plugin, systems::plugin));
+    app.init_resource::<ConsoleInputPrompt>();
 }

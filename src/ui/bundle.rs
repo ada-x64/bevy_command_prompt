@@ -1,10 +1,9 @@
 use crate::ui::events::on_scroll_handler;
 
-use super::prelude::*;
+use crate::prelude::*;
 use bevy::{
     color::palettes::tailwind,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
-    prelude::*,
 };
 use bevy_simple_text_input::TextInput;
 
@@ -24,8 +23,7 @@ impl ConsoleInput {
     fn add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
         let mut q = world.try_query::<&ConsoleFontSize>().unwrap();
         let font_size = q.single(&world).unwrap();
-        let mut q = world.try_query::<&ConsoleInputPrompt>().unwrap();
-        let prompt = q.single(&world).unwrap();
+        let prompt = world.resource::<ConsoleInputPrompt>();
 
         let prompt_bundle = (
             Text::new(prompt.0.clone()),
@@ -80,7 +78,7 @@ impl ConsoleBody {
 
 #[derive(Component, Debug, Reflect, Clone, Copy)]
 #[component(on_add=ConsoleWrapper::add)]
-#[require(ConsoleFontSize, ConsoleBackground, ConsoleInputPrompt)]
+#[require(ConsoleFontSize, ConsoleBackground)]
 pub struct ConsoleWrapper {
     left: Val,
     right: Val,

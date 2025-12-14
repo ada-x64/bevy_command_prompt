@@ -1,4 +1,5 @@
 export CARGO_TERM_COLOR="always"
+export PYTHONUNBUFFERED=1
 
 if [[ -n "$SSH_CLIENT" ]]; then
    export FEATURES=""

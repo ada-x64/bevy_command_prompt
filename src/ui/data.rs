@@ -1,10 +1,9 @@
 use bevy::{
     color::palettes::tailwind,
     ecs::{lifecycle::HookContext, world::DeferredWorld},
-    prelude::*,
 };
 
-use crate::ui::bundle::ConsoleWrapper;
+use crate::prelude::*;
 
 #[derive(Component, Default, Debug, Reflect, Clone, Copy)]
 #[require(ConsoleWrapper, ConsoleFontSize)]
@@ -15,7 +14,7 @@ pub struct ConsoleBodyTextWrapper;
 #[derive(Component, Debug, Default, Reflect, Clone, Copy)]
 pub struct ConsoleBodyText;
 
-#[derive(Component, Debug, Reflect, Clone, Deref)]
+#[derive(Resource, Debug, Reflect, Clone, Deref)]
 pub struct ConsoleInputPrompt(pub String);
 impl Default for ConsoleInputPrompt {
     fn default() -> Self {
@@ -30,8 +29,6 @@ pub struct ConsoleInputValue;
 pub struct AppendToConsole(pub String);
 #[derive(Event, Clone, Debug)]
 pub struct ClearConsole;
-#[derive(Event, Clone, Debug)]
-pub struct CallConsoleCommand(pub String);
 
 /// Width, height in pixels.
 #[derive(Component, Debug, Reflect, Clone, Copy)]

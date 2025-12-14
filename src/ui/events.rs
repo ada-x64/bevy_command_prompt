@@ -1,5 +1,4 @@
-use super::prelude::*;
-pub use bevy::prelude::*;
+use crate::prelude::*;
 
 /// EntityEvent handler. Must be observed on the given entity.
 pub fn on_scroll_handler(
@@ -73,12 +72,8 @@ fn on_clear_console(
         commands.entity(e).despawn();
     }
 }
-fn on_call_console_command(trigger: On<CallConsoleCommand>) {
-    debug!("MOCK: Calling command {}", trigger.0);
-}
 
 pub fn plugin(app: &mut App) {
     app.add_observer(on_clear_console);
     app.add_observer(on_append_to_console);
-    app.add_observer(on_call_console_command);
 }
