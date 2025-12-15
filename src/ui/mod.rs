@@ -13,5 +13,5 @@ pub mod prelude {
 
 pub fn plugin(app: &mut App) {
     app.add_plugins((TextInputPlugin, events::plugin, systems::plugin));
-    app.init_resource::<ConsoleInputPrompt>();
+    app.init_resource::<ConsoleUiSettings>();
 }

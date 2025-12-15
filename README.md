@@ -20,8 +20,12 @@ This is an attempt at a bevy_ui-native dev console inspired by [makspll/bevy-con
 - [ ] Dynamic entity selection / query language a la Minecraft commands
     - See [brigadier](https://github.com/Mojang/brigadier)
 - [ ] Picker support
+- [ ] Multi-channel IO
+    - i.e. STDIN/STDOUT/STDERR split to allow command interaction
 - [ ] Signal support (e.g. `^C` sends a signal to the currently executing command)
-    - Would require the ability for a running command to capture input and output, which means asynchronous execution.
+    - dependent on multi-channel io
+- [ ] Environment variable support
+    - Simple key/value string store.
 - [ ] Virtual scrolling for large command history
 - [ ] Colorized commands with ANSI escapes
 

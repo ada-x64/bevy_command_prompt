@@ -7,20 +7,20 @@ _.source = {path="~/.profile", redact=true}
 [tools]
 sops = "latest"
 age = "latest"
-'pipx:cubething_psync' = "0.4.1"
+'pipx:cubething_psync' = "0.5"
 
 [tasks.play]
 description="Run the application (SSH)"
 usage = """
+    arg "<path>" help="path to executable" default="target/debug/examples/basic"
     flag "--build-args -B <args>" default="--example basic" var=#true
-    flag "-e <env>" help="environment variables"
-    flag "-p <path>" help="path to executable" default="target/debug/examples/basic"
-    flag "-a <arguments>" help="command arguments"
-    flag "-A <assets>" help="assets path"
+    flag "--env -e <env>" help="environment variables"
+    flag "--args -a <arguments>" help="command arguments"
+    flag "--assets -A <assets>" help="assets path"
 """
 run = """
 #!/bin/bash
 set -xe
 mise build ${usage_build_args}
-psync-client -e "${usage_e}"  -a "${usage_a}"  -p "${usage_p}" -A "${usage_A}"
+psync "${usage_path}" -e "${usage_env}" -a "${usage_args}" -A "${usage_assets}"
 """

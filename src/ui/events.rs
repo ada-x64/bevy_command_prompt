@@ -52,10 +52,11 @@ fn on_append_to_console(
     trigger: On<AppendToConsole>,
     q: Query<Entity, With<ConsoleBodyTextWrapper>>,
     mut commands: Commands,
+    settings: Res<ConsoleUiSettings>,
 ) {
     for e in q {
         let text_entt = commands
-            .spawn((ConsoleBodyText, Text::new(trigger.0.clone())))
+            .spawn((ConsoleBodyText, settings.text(trigger.0.clone())))
             .id();
         commands.entity(e).add_child(text_entt);
         // this will scroll to the bottom _after_ appending the new line

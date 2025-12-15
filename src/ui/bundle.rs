@@ -1,35 +1,32 @@
 use crate::ui::events::on_scroll_handler;
 
 use crate::prelude::*;
-use bevy::{
-    color::palettes::tailwind,
-    ecs::{lifecycle::HookContext, world::DeferredWorld},
-};
+use bevy::ecs::{lifecycle::HookContext, world::DeferredWorld};
 use bevy_simple_text_input::TextInput;
 
-// <ConsoleWrapper>
+// <Console>
 //   <ConsoleBody>
 //     <ConsoleBodyText />
 //     <ConsoleBodyText />
 //     <ConsoleBodyText />
 //   </ConsoleBody>
 //   <ConsoleInput />
-// </ConsoleWrapper>
+// </Console>
 
 #[derive(Component, Debug, Default, Reflect, Clone, Copy)]
 #[component(on_add = ConsoleInput::add)]
 pub struct ConsoleInput;
 impl ConsoleInput {
     fn add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
-        let mut q = world.try_query::<&ConsoleFontSize>().unwrap();
-        let font_size = q.single(&world).unwrap();
-        let prompt = world.resource::<ConsoleInputPrompt>();
-
+        let settings = world.resource::<ConsoleUiSettings>();
+        // TODO: Multiline prompts need better size constraints.
         let prompt_bundle = (
-            Text::new(prompt.0.clone()),
+            settings.text(settings.prompt.clone()),
             Node {
-                width: Val::Px(font_size.width * prompt.len() as f32),
-                height: Val::Px(font_size.height),
+                width: Val::Px(
+                    settings.font.font_size * settings.prompt.to_ascii_lowercase().len() as f32,
+                ),
+                height: Val::Px(settings.line_height()),
                 ..Default::default()
             },
         );
@@ -37,11 +34,18 @@ impl ConsoleInput {
         let bundle = (
             Name::new("ConsoleInput"),
             Node {
-                height: Val::Px(font_size.height),
+                height: Val::Px(settings.line_height()),
                 display: Display::Flex,
                 ..Default::default()
             },
-            children![prompt_bundle, (TextInput, ConsoleInputValue)],
+            children![
+                prompt_bundle,
+                (
+                    TextInput,
+                    bevy_simple_text_input::TextInputTextFont(settings.font.clone()),
+                    ConsoleInputValue
+                )
+            ],
         );
         world.commands().entity(ctx.entity).insert(bundle);
     }
@@ -76,56 +80,21 @@ impl ConsoleBody {
     }
 }
 
-#[derive(Component, Debug, Reflect, Clone, Copy)]
-#[component(on_add=ConsoleWrapper::add)]
-#[require(ConsoleFontSize, ConsoleBackground)]
-pub struct ConsoleWrapper {
-    left: Val,
-    right: Val,
-    top: Val,
-    bottom: Val,
-    /// Number of characters to display per line
-    width: u32,
-    /// Number of lines to display
-    height: u32,
-}
-impl Default for ConsoleWrapper {
-    fn default() -> Self {
-        Self {
-            left: Val::Vw(20.),
-            right: Default::default(),
-            top: Val::Vh(20.),
-            bottom: Default::default(),
-            width: 50,
-            height: 10,
-        }
-    }
-}
-impl ConsoleWrapper {
-    fn add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
-        let data = {
-            let entt = world.get_entity(ctx.entity).unwrap();
-            *entt.get::<Self>().unwrap()
-        };
-        let mut q = world.try_query::<&ConsoleFontSize>().unwrap();
-        let font_size = q.single(&world).unwrap();
-
+impl Console {
+    pub(crate) fn add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
+        let settings = world.resource::<ConsoleUiSettings>();
         let bundle = (
-            BackgroundColor(tailwind::SLATE_950.with_alpha(0.75).into()),
             Name::new("Console"),
             Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::ColumnReverse,
                 flex_wrap: FlexWrap::NoWrap,
                 overflow: Overflow::hidden(),
-                left: data.left,
-                right: data.right,
-                top: data.top,
-                bottom: data.bottom,
-                width: Val::Px(data.width as f32 * font_size.width),
-                height: Val::Px(data.height as f32 * font_size.height),
+                width: Val::Px(settings.width as f32 * settings.font.font_size),
+                height: Val::Px(settings.height as f32 * settings.line_height()),
                 ..Default::default()
             },
+            BackgroundColor(settings.background_color),
             children![ConsoleInput, ConsoleBody],
         );
         world.commands().entity(ctx.entity).insert(bundle);

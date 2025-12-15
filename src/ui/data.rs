@@ -1,12 +1,9 @@
-use bevy::{
-    color::palettes::tailwind,
-    ecs::{lifecycle::HookContext, world::DeferredWorld},
-};
+use bevy::color::palettes::css::{BLACK, WHITE};
 
 use crate::prelude::*;
 
 #[derive(Component, Default, Debug, Reflect, Clone, Copy)]
-#[require(ConsoleWrapper, ConsoleFontSize)]
+#[component(on_add=Console::add)]
 pub struct Console;
 
 #[derive(Component, Debug, Default, Reflect, Clone, Copy)]
@@ -14,13 +11,45 @@ pub struct ConsoleBodyTextWrapper;
 #[derive(Component, Debug, Default, Reflect, Clone, Copy)]
 pub struct ConsoleBodyText;
 
-#[derive(Resource, Debug, Reflect, Clone, Deref)]
-pub struct ConsoleInputPrompt(pub String);
-impl Default for ConsoleInputPrompt {
+#[derive(Resource, Debug, Reflect, Clone)]
+#[reflect(Resource)]
+pub struct ConsoleUiSettings {
+    pub prompt: String,
+    pub font: TextFont,
+    pub font_color: Color,
+    pub background_color: Color,
+    /// Width in characters
+    pub width: u32,
+    /// Height in number of lines
+    pub height: u32,
+}
+impl Default for ConsoleUiSettings {
     fn default() -> Self {
-        Self("> ".into())
+        Self {
+            prompt: "> ".into(),
+            font: TextFont {
+                font_size: 12.,
+                ..Default::default()
+            },
+            font_color: WHITE.into(),
+            background_color: BLACK.into(),
+            width: 50,
+            height: 25,
+        }
     }
 }
+impl ConsoleUiSettings {
+    pub fn line_height(&self) -> f32 {
+        match self.font.line_height {
+            bevy::text::LineHeight::Px(px) => px,
+            bevy::text::LineHeight::RelativeToFont(scale) => self.font.font_size * scale,
+        }
+    }
+    pub fn text(&self, value: impl ToString) -> impl Bundle {
+        (self.font.clone(), Text(value.to_string()))
+    }
+}
+
 /// Marker struct. Get the sibling TextInput's value.
 #[derive(Component, Debug, Reflect, Clone, Copy)]
 pub struct ConsoleInputValue;
@@ -29,50 +58,3 @@ pub struct ConsoleInputValue;
 pub struct AppendToConsole(pub String);
 #[derive(Event, Clone, Debug)]
 pub struct ClearConsole;
-
-/// Width, height in pixels.
-#[derive(Component, Debug, Reflect, Clone, Copy)]
-pub struct ConsoleFontSize {
-    pub width: f32,
-    pub height: f32,
-}
-impl Default for ConsoleFontSize {
-    fn default() -> Self {
-        Self {
-            width: 12.,
-            height: 24.,
-        }
-    }
-}
-
-#[derive(Component, Debug, Reflect, Clone)]
-pub struct ConsoleFont(pub Handle<Font>);
-
-#[derive(Component, Debug, Reflect, Clone, Copy)]
-pub struct ConsoleTextColor(pub Color);
-impl Default for ConsoleTextColor {
-    fn default() -> Self {
-        Self(tailwind::SLATE_100.into())
-    }
-}
-
-#[derive(Component, Debug, Reflect, Clone, Copy)]
-#[component(on_insert=ConsoleBackground::add)]
-pub struct ConsoleBackground(pub Color);
-impl Default for ConsoleBackground {
-    fn default() -> Self {
-        Self(tailwind::SLATE_950.with_alpha(75.).into())
-    }
-}
-impl ConsoleBackground {
-    fn add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
-        let data = {
-            let entt = world.get_entity(ctx.entity).unwrap();
-            *entt.get::<Self>().unwrap()
-        };
-        world
-            .commands()
-            .entity(ctx.entity)
-            .insert(BackgroundColor(data.0));
-    }
-}

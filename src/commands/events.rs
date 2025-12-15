@@ -4,11 +4,14 @@ fn on_call_console_command(
     trigger: On<CallConsoleCommand>,
     cmds: Res<ConsoleCommands>,
     mut commands: Commands,
-    prompt: Res<ConsoleInputPrompt>,
+    ui_settings: Res<ConsoleUiSettings>,
 ) {
     let split = trigger.0.split(" ").collect::<Vec<_>>();
     let name = r!(split.first());
-    commands.trigger(AppendToConsole(format!("{}{}", prompt.0, trigger.0)));
+    commands.trigger(AppendToConsole(format!(
+        "{}{}",
+        ui_settings.prompt, trigger.0
+    )));
     if let Some(cmd) = cmds.get(*name) {
         commands.run_system_with(cmd.dispatch, trigger.0.clone());
     } else {
