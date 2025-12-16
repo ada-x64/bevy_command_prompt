@@ -11,6 +11,9 @@ pub struct ConsoleBodyTextWrapper;
 #[derive(Component, Debug, Default, Reflect, Clone, Copy)]
 pub struct ConsoleBodyText;
 
+/// TODO: Need to reactively rerender when this changes.
+/// The main settings for the console UI.
+/// Positioning etc. is handled _outside_ this crate.
 #[derive(Resource, Debug, Reflect, Clone)]
 #[reflect(Resource)]
 pub struct ConsoleUiSettings {
@@ -18,10 +21,6 @@ pub struct ConsoleUiSettings {
     pub font: TextFont,
     pub font_color: Color,
     pub background_color: Color,
-    /// Width in characters
-    pub width: u32,
-    /// Height in number of lines
-    pub height: u32,
 }
 impl Default for ConsoleUiSettings {
     fn default() -> Self {
@@ -33,8 +32,6 @@ impl Default for ConsoleUiSettings {
             },
             font_color: WHITE.into(),
             background_color: BLACK.into(),
-            width: 50,
-            height: 25,
         }
     }
 }
@@ -55,6 +52,6 @@ impl ConsoleUiSettings {
 pub struct ConsoleInputValue;
 
 #[derive(Message, Event, Clone, Debug)]
-pub struct AppendToConsole(pub String);
+pub struct ConsolePrint(pub String);
 #[derive(Event, Clone, Debug)]
 pub struct ClearConsole;

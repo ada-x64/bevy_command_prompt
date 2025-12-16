@@ -1,8 +1,11 @@
 use crate::ui::events::on_scroll_handler;
 
 use crate::prelude::*;
-use bevy::ecs::{lifecycle::HookContext, world::DeferredWorld};
-use bevy_simple_text_input::TextInput;
+use bevy::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    input_focus::InputFocus,
+};
+use bevy_ui_text_input::{TextInputMode, TextInputNode};
 
 // <Console>
 //   <ConsoleBody>
@@ -19,6 +22,7 @@ pub struct ConsoleInput;
 impl ConsoleInput {
     fn add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
         let settings = world.resource::<ConsoleUiSettings>();
+
         // TODO: Multiline prompts need better size constraints.
         let prompt_bundle = (
             settings.text(settings.prompt.clone()),
@@ -26,7 +30,23 @@ impl ConsoleInput {
                 width: Val::Px(
                     settings.font.font_size * settings.prompt.to_ascii_lowercase().len() as f32,
                 ),
-                height: Val::Px(settings.line_height()),
+                ..Default::default()
+            },
+        );
+
+        let input_bundle = (
+            TextInputNode {
+                clear_on_submit: true,
+                mode: TextInputMode::SingleLine,
+                unfocus_on_submit: false,
+                ..Default::default()
+            },
+            settings.font.clone(),
+            ConsoleInputValue,
+            Node {
+                width: Val::Percent(100.),
+                padding: UiRect::all(Val::Px(0.)),
+                margin: UiRect::all(Val::Px(0.)),
                 ..Default::default()
             },
         );
@@ -36,16 +56,11 @@ impl ConsoleInput {
             Node {
                 height: Val::Px(settings.line_height()),
                 display: Display::Flex,
+                padding: UiRect::all(Val::Px(0.)),
+                margin: UiRect::all(Val::Px(0.)),
                 ..Default::default()
             },
-            children![
-                prompt_bundle,
-                (
-                    TextInput,
-                    bevy_simple_text_input::TextInputTextFont(settings.font.clone()),
-                    ConsoleInputValue
-                )
-            ],
+            children![prompt_bundle, input_bundle],
         );
         world.commands().entity(ctx.entity).insert(bundle);
     }
@@ -62,10 +77,7 @@ impl ConsoleBody {
                 display: Display::Flex,
                 flex_direction: FlexDirection::Column,
                 height: Val::Percent(100.),
-                overflow: Overflow {
-                    x: OverflowAxis::Clip,
-                    y: OverflowAxis::Scroll,
-                },
+                overflow: Overflow::scroll(),
                 border: UiRect::all(px(1.)),
                 ..Default::default()
             },
@@ -88,15 +100,25 @@ impl Console {
             Node {
                 display: Display::Flex,
                 flex_direction: FlexDirection::ColumnReverse,
-                flex_wrap: FlexWrap::NoWrap,
                 overflow: Overflow::hidden(),
-                width: Val::Px(settings.width as f32 * settings.font.font_size),
-                height: Val::Px(settings.height as f32 * settings.line_height()),
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
                 ..Default::default()
             },
             BackgroundColor(settings.background_color),
             children![ConsoleInput, ConsoleBody],
         );
-        world.commands().entity(ctx.entity).insert(bundle);
+        world
+            .commands()
+            .entity(ctx.entity)
+            .insert(bundle)
+            .observe(Self::on_click);
+    }
+    fn on_click(
+        _trigger: On<Pointer<Click>>,
+        mut focus: ResMut<InputFocus>,
+        target: Single<Entity, With<ConsoleInputValue>>,
+    ) {
+        focus.0 = Some(*target)
     }
 }

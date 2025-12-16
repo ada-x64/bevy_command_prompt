@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = "0.17"
+bevy = { version="0.17" }
 bevy-inspector-egui = "0.35.0"
 bevy_dylib={optional=true, version="0.17.0-rc.2"}
 bevy_simple_text_input = "0.12.0"
 bevy_ui_text_input = "0.6.0"
 clap = { version = "4.5.53", features = ["derive"] }
+regex = "1.12.2"
 shlex = "1.3.0"
 tiny_bail = "0.7.0"
 

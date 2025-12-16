@@ -33,6 +33,6 @@ fn dispatch_cmd<T: ConsoleCommand>(
         Ok(())
     })();
     if let Err(e) = res {
-        commands.trigger(AppendToConsole(e))
+        commands.trigger(ConsolePrint(e))
     }
 }

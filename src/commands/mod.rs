@@ -1,6 +1,8 @@
 use crate::prelude::*;
 
 mod app_ext;
+#[allow(clippy::module_inception)]
+mod commands;
 mod data;
 mod events;
 
@@ -10,8 +12,7 @@ pub mod prelude {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins(events::plugin);
     app.init_resource::<ConsoleCommands>();
-    app.add_console_command::<ClearCmd>();
-    app.add_console_command::<ShowCommandsCmd>();
+    app.init_resource::<CommandHistory>();
+    app.add_plugins((events::plugin, commands::plugin));
 }

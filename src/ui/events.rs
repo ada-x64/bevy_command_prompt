@@ -49,7 +49,7 @@ pub fn on_scroll_handler(
 }
 
 fn on_append_to_console(
-    trigger: On<AppendToConsole>,
+    trigger: On<ConsolePrint>,
     q: Query<Entity, With<ConsoleBodyTextWrapper>>,
     mut commands: Commands,
     settings: Res<ConsoleUiSettings>,

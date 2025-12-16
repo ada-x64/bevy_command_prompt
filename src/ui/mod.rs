@@ -1,5 +1,6 @@
+use bevy_ui_text_input::TextInputPlugin;
+
 use crate::prelude::*;
-use bevy_simple_text_input::TextInputPlugin;
 
 mod bundle;
 mod data;

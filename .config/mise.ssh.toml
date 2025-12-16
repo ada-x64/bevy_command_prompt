@@ -12,8 +12,8 @@ age = "latest"
 [tasks.play]
 description="Run the application (SSH)"
 usage = """
-    arg "<path>" help="path to executable" default="target/debug/examples/basic"
-    flag "--build-args -B <args>" default="--example basic" var=#true
+    arg "<path>" help="path to executable" default="target/debug/examples/minimal"
+    flag "--build-args -B <args>" default="--example minimal" var=#true
     flag "--env -e <env>" help="environment variables"
     flag "--args -a <arguments>" help="command arguments"
     flag "--assets -A <assets>" help="assets path"

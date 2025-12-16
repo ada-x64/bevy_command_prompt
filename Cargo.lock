@@ -676,6 +676,7 @@ dependencies = [
  "bevy_simple_text_input",
  "bevy_ui_text_input",
  "clap",
+ "regex",
  "shlex",
  "tiny_bail",
 ]

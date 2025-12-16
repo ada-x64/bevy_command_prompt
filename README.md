@@ -2,13 +2,24 @@
 <img src="./.doc/logo.png" height=250 alt="Logo - 'bevy command prompt' over a sketch of a green magpie" />
 </div>
 
-This is an attempt at a bevy_ui-native dev console inspired by [makspll/bevy-console](https://github.com/makspll/bevy-console).
+This is an attempt at a `bevy_ui`-native dev console.
+
+## Inspiration
+
+This project would not exist without inspiration from the following sources:
+
+- [makspll/bevy-console](https://github.com/makspll/bevy-console)
+- [hymm/bevy_mod_debug_console](https://github.com/hymm/bevy_mod_debug_console)
+- [mojang/brigadier](https://github.com/Mojang/brigadier)
 
 ## Features
 
 - [x] Sane default UI built in native bevy.
 - [x] Command parsing with [clap](https://crates.io/crates/clap)
 - [x] Command history
+- [ ] Basic built-in commands
+    - [x] `clear` - clears the console
+    - [ ] `show` - list available commands, registered components, active entities, resources, assets, etc
 - [ ] Command completion
     - [ ] Command names
     - [ ] Command parameters (when possible choices are enumerated)
@@ -17,8 +28,7 @@ This is an attempt at a bevy_ui-native dev console inspired by [makspll/bevy-con
 
 ### Stretch goals
 
-- [ ] Dynamic entity selection / query language a la Minecraft commands
-    - See [brigadier](https://github.com/Mojang/brigadier)
+- [ ] Dynamic entity selection / query language a la brigadier
 - [ ] Picker support
 - [ ] Multi-channel IO
     - i.e. STDIN/STDOUT/STDERR split to allow command interaction
