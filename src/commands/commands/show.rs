@@ -27,8 +27,8 @@ pub enum ShowKind {
     Resources,
 }
 
-fn find_inner(msg: In<ShowCmd>, world: &mut World) {
-    let mut vec: Vec<String> = match msg.kind {
+fn find_inner(input: In<CommandMsg<ShowCmd>>, world: &mut World) {
+    let mut vec: Vec<String> = match input.command.kind {
         ShowKind::Commands => world
             .resource::<ConsoleCommands>()
             .values()
@@ -126,15 +126,16 @@ fn find_inner(msg: In<ShowCmd>, world: &mut World) {
             })
             .collect(),
     };
-    if let Some(filter) = msg.filter.as_ref() {
-        vec = if msg.use_expression {
+    if let Some(filter) = input.command.filter.as_ref() {
+        vec = if input.command.use_expression {
             vec.into_iter().filter(|val| val.contains(filter)).collect()
         } else {
             let expr = Regex::new(filter);
             if let Err(e) = expr {
-                world.trigger(ConsolePrint(format!(
-                    "Failed to parse regular expression.\nError: {e:?}"
-                )));
+                input.println(
+                    &mut world.commands(),
+                    format!("Failed to parse regular expression.\nError: {e:?}"),
+                );
                 return;
             }
             let expr = expr.unwrap();
@@ -144,10 +145,10 @@ fn find_inner(msg: In<ShowCmd>, world: &mut World) {
     let str = vec
         .iter()
         .fold(String::new(), |prev, next| format!("{prev}\n{next}"));
-    world.trigger(ConsolePrint(str));
+    input.println(&mut world.commands(), str);
 }
 
-fn on_find_msg(mut reader: MessageReader<ShowCmd>, mut commands: Commands) {
+fn on_find_msg(mut reader: MessageReader<CommandMsg<ShowCmd>>, mut commands: Commands) {
     for msg in reader.read() {
         commands.run_system_cached_with(find_inner, msg.clone());
     }

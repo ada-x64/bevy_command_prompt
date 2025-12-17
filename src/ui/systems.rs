@@ -1,39 +1,27 @@
 use crate::prelude::*;
-use bevy::{input_focus::InputFocus, ui::ui_layout_system};
-use bevy_ui_text_input::SubmitText;
+use bevy::{
+    input::mouse::MouseScrollUnit, input_focus::InputFocus, platform::collections::HashMap,
+    ui::ui_layout_system,
+};
 
 /// submission event reader
 /// this must occur after [TextInputSystem](bevy_simple_text_input::TextInputSystem),
 /// but that's in the Update schedule so no need to worry
 fn on_submit_msg(
-    mut reader: MessageReader<SubmitText>,
-    filter: Query<Entity, With<ConsoleInputValue>>,
+    mut reader: MessageReader<ConsoleSubmitMsg>,
+    mut query: Query<&mut Console>,
     mut commands: Commands,
-    mut history: ResMut<CommandHistory>,
 ) {
     for msg in reader.read() {
-        // note: txtinput value cleared on submit
-        if filter.iter().any(|e| e == msg.entity) {
-            commands.trigger(CallConsoleCommand(msg.text.clone()));
-            history.push(msg.text.clone());
-        }
-    }
-}
-
-fn on_append_to_console(
-    mut reader: MessageReader<ConsolePrint>,
-    q: Query<(&mut ScrollPosition, &ComputedNode), With<ConsoleBodyTextWrapper>>,
-) {
-    // NOTE: The intention here is to allow for multiple console.
-    // This code doesn't quite work for that.
-    // Are we intended to allow multiples? I don't really see the use case,
-    // but maximal flexibility in a library is probably best.
-    let msgs = reader.read().collect::<Vec<_>>();
-    for (mut pos, cnode) in q {
-        for _msg in &msgs {
-            let max_offset = (cnode.content_size() - cnode.size()) * cnode.inverse_scale_factor();
-            pos.x = 0.;
-            pos.y = max_offset.y;
+        if let Ok(mut console) = query.get_mut(msg.console_id) {
+            commands.trigger(CallCommandEvent {
+                command_name: console.input.clone(),
+                console_id: msg.console_id,
+            });
+            let history_value = std::mem::take(&mut console.input);
+            console.history.push(history_value);
+        } else {
+            error!("Could not submit from console with id {}", msg.console_id);
         }
     }
 }
@@ -44,25 +32,27 @@ fn on_append_to_console(
 fn keyboard_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     focus: Res<InputFocus>,
-    cmd_history: Res<CommandHistory>,
-    mut console_input: Single<(Entity, &mut Text), With<ConsoleInputValue>>,
+    mut q_console: Query<&mut Console>,
     mut history_idx: Local<usize>,
     mut filtered_history: Local<Option<Vec<usize>>>,
     mut original_value: Local<Option<String>>,
 ) {
     let mut pressed = keyboard.get_pressed();
-    if pressed.any(|k| *k == KeyCode::ArrowUp) {
-        if let Some(input) = focus.0
-            && input == console_input.0
-        {
+    if let Some(input) = focus.0
+        && let Ok(mut console) = q_console.get_mut(input)
+    {
+        if pressed.any(|k| *k == KeyCode::ArrowUp) {
             if filtered_history.is_none() {
-                let f = cmd_history
+                *original_value = Some(std::mem::take(&mut console.input));
+                let f = console
+                    .history
                     .iter()
                     .enumerate()
-                    .filter_map(|(i, s)| s.starts_with(console_input.1.as_str()).then_some(i))
+                    .filter_map(|(i, s)| {
+                        s.starts_with(original_value.as_ref().unwrap()).then_some(i)
+                    })
                     .collect::<Vec<_>>();
                 *filtered_history = Some(f);
-                *original_value = Some(console_input.1.0.clone());
             }
             let fh = filtered_history.as_ref().unwrap();
             let ov = original_value.as_ref().unwrap();
@@ -70,48 +60,70 @@ fn keyboard_input(
             info!("Setting from history");
             info!(?ov, ?history_idx);
             if *history_idx == 0 {
-                console_input.1.0 = ov.clone();
+                console.input = ov.clone();
             } else {
                 let idx = fh[fh.len() - *history_idx - 1];
-                console_input.1.0 = (*cmd_history)[idx].clone();
+                console.input = (console.history)[idx].clone();
             }
-        }
-    } else if pressed.any(|k| *k == KeyCode::ArrowDown) && filtered_history.is_some() {
-        let fh = filtered_history.as_ref().unwrap();
-        let ov = original_value.as_ref().unwrap();
-        *history_idx = (*history_idx - 1).clamp(0, fh.len());
-        info!("Setting from history");
-        info!(?ov, ?history_idx);
-        if *history_idx == 0 {
-            console_input.1.0 = ov.clone();
+        } else if pressed.any(|k| *k == KeyCode::ArrowDown) && filtered_history.is_some() {
+            let fh = filtered_history.as_ref().unwrap();
+            let ov = original_value.as_ref().unwrap();
+            *history_idx = (*history_idx - 1).clamp(0, fh.len());
+            info!("Setting from history");
+            info!(?ov, ?history_idx);
+            if *history_idx == 0 {
+                console.input = ov.clone();
+            } else {
+                let idx = fh[fh.len() - *history_idx - 1];
+                console.input = console.history[idx].clone();
+            }
         } else {
-            let idx = fh[fh.len() - *history_idx - 1];
-            console_input.1.0 = (*cmd_history)[idx].clone();
+            *filtered_history = None;
+            *original_value = None;
         }
     } else {
-        *filtered_history = None;
-        *original_value = None;
+        error!("Could not access console history")
     }
 }
 
-fn update_style() {
-    // TODO
+fn on_scroll(
+    mut reader: MessageReader<ConsoleScrollMsg>,
+    mut commands: Commands,
+    settings_q: Query<&ConsoleUiSettings>,
+    view_q: Query<&ConsoleBufferView>,
+) {
+    let mut map = HashMap::<Entity, Vec2>::new();
+    for msg in reader.read() {
+        let settings = settings_q.get(msg.console_id).unwrap();
+        let delta = match msg.message.unit {
+            MouseScrollUnit::Line => Vec2::new(msg.message.x, msg.message.y),
+            MouseScrollUnit::Pixel => {
+                Vec2::new(msg.message.x, msg.message.y / settings.line_height())
+            }
+        };
+        map.entry(msg.console_id)
+            .and_modify(|d| *d += delta)
+            .or_insert(delta);
+    }
+    for (console_id, delta) in map.into_iter() {
+        let view = view_q.get(console_id).unwrap();
+        let start = view.start.saturating_add_signed(delta.y as isize);
+        let new_view = ConsoleBufferView { start, ..*view };
+        commands.entity(console_id).insert(new_view);
+    }
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_message::<ConsolePrint>();
+    app.add_message::<ConsolePrintln>();
     app.add_systems(
         PostUpdate,
         (
             on_submit_msg.before(ui_layout_system),
-            on_append_to_console.after(ui_layout_system),
+            on_scroll.before(ui_layout_system),
         ),
     );
     app.add_systems(
         PreUpdate,
-        (
-            keyboard_input.run_if(resource_changed::<ButtonInput<KeyCode>>),
-            update_style.run_if(resource_changed::<ConsoleUiSettings>),
-        ),
+        keyboard_input.run_if(resource_changed::<ButtonInput<KeyCode>>),
     );
 }

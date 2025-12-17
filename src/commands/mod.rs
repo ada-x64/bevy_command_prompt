@@ -13,6 +13,5 @@ pub mod prelude {
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<ConsoleCommands>();
-    app.init_resource::<CommandHistory>();
     app.add_plugins((events::plugin, commands::plugin));
 }
