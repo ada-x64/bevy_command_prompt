@@ -1,4 +1,4 @@
-use bevy_ui_text_input::TextInputPlugin;
+use bevy::input_focus::InputFocus;
 
 use crate::prelude::*;
 
@@ -13,10 +13,6 @@ pub mod prelude {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((
-        TextInputPlugin,
-        events::plugin,
-        systems::plugin,
-        console::plugin,
-    ));
+    app.add_plugins((events::plugin, systems::plugin, console::plugin));
+    app.init_resource::<InputFocus>();
 }

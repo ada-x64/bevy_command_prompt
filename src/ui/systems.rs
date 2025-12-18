@@ -115,15 +115,16 @@ fn on_scroll(
 
 pub fn plugin(app: &mut App) {
     app.add_message::<ConsolePrintln>();
+    app.add_message::<ConsoleScrollMsg>();
+    app.add_message::<ConsoleSubmitMsg>();
     app.add_systems(
         PostUpdate,
         (
+            keyboard_input.run_if(
+                resource_changed::<ButtonInput<KeyCode>>.and(resource_exists::<InputFocus>),
+            ),
             on_submit_msg.before(ui_layout_system),
             on_scroll.before(ui_layout_system),
         ),
-    );
-    app.add_systems(
-        PreUpdate,
-        keyboard_input.run_if(resource_changed::<ButtonInput<KeyCode>>),
     );
 }

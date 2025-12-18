@@ -16,7 +16,7 @@ pub fn main() {
                 height: Val::Vh(100.),
                 ..Default::default()
             },
-            children![Console],
+            children![Console::default()],
         ));
     });
     app.run();

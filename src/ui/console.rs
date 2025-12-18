@@ -8,7 +8,7 @@ use bevy::{
 
 #[derive(Component, Debug, Reflect, Clone)]
 #[component(immutable, on_insert=Self::on_insert)]
-#[require(Console, Node)]
+#[require(Node)]
 pub struct ConsoleUiSettings {
     pub font: TextFont,
     pub font_color: Color,
@@ -48,7 +48,7 @@ impl ConsoleUiSettings {
 
 // TODO: Virtual scrolling requires custom scroll bar.
 #[derive(Component, Debug, Clone, Reflect, Copy)]
-#[require(Node, Text, ConsoleUiSettings, Console, ScrollPosition)]
+#[require(Node, Text)]
 #[component(on_insert=Self::on_insert)]
 pub struct ConsoleBufferView {
     pub console_id: Entity,
@@ -89,16 +89,16 @@ impl ConsoleBufferView {
         lines: usize,
         prompt_lines: usize,
     ) -> Self {
-        let range = (line_height / container_height) as usize - prompt_lines;
+        let range = ((line_height / container_height) as usize).saturating_sub(prompt_lines);
         ConsoleBufferView {
-            start: lines - range,
+            start: lines.saturating_sub(range),
             range,
             ..self
         }
     }
     pub fn jump_to_bottom(self, lines: usize) -> Self {
         Self {
-            start: lines - self.range,
+            start: lines.saturating_sub(self.range),
             ..self
         }
     }
@@ -146,6 +146,9 @@ impl Default for Console {
     }
 }
 impl Console {
+    pub fn with_prompt(self, prompt: String) -> Self {
+        Self { prompt, ..self }
+    }
     pub(crate) fn on_add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
         let bundle = (
             Name::new("Console"),
