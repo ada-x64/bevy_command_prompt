@@ -1,6 +1,11 @@
 use crate::prelude::*;
 use bevy::{
-    input::mouse::MouseScrollUnit, input_focus::InputFocus, platform::collections::HashMap,
+    input::{
+        keyboard::{Key, KeyboardInput},
+        mouse::MouseScrollUnit,
+    },
+    input_focus::InputFocus,
+    platform::collections::HashMap,
     ui::ui_layout_system,
 };
 
@@ -26,63 +31,106 @@ fn on_submit_msg(
     }
 }
 
-// TODO: Custom input actions are going to require a custom input solution.
-// None of the existing solutions are extensible.
-// Fortunately, they all rely on cosmic_text, so I have plenty of examples to go off of.
-fn keyboard_input(
-    keyboard: Res<ButtonInput<KeyCode>>,
-    focus: Res<InputFocus>,
+fn set_from_history(
+    input: In<(bool, Entity)>,
     mut q_console: Query<&mut Console>,
     mut history_idx: Local<usize>,
     mut filtered_history: Local<Option<Vec<usize>>>,
     mut original_value: Local<Option<String>>,
 ) {
-    let mut pressed = keyboard.get_pressed();
-    if let Some(input) = focus.0
-        && let Ok(mut console) = q_console.get_mut(input)
-    {
-        if pressed.any(|k| *k == KeyCode::ArrowUp) {
-            if filtered_history.is_none() {
-                *original_value = Some(std::mem::take(&mut console.input));
-                let f = console
-                    .history
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, s)| {
-                        s.starts_with(original_value.as_ref().unwrap()).then_some(i)
-                    })
-                    .collect::<Vec<_>>();
-                *filtered_history = Some(f);
-            }
-            let fh = filtered_history.as_ref().unwrap();
-            let ov = original_value.as_ref().unwrap();
-            *history_idx = (*history_idx + 1).clamp(0, fh.len());
-            info!("Setting from history");
-            info!(?ov, ?history_idx);
-            if *history_idx == 0 {
-                console.input = ov.clone();
-            } else {
-                let idx = fh[fh.len() - *history_idx - 1];
-                console.input = (console.history)[idx].clone();
-            }
-        } else if pressed.any(|k| *k == KeyCode::ArrowDown) && filtered_history.is_some() {
-            let fh = filtered_history.as_ref().unwrap();
-            let ov = original_value.as_ref().unwrap();
-            *history_idx = (*history_idx - 1).clamp(0, fh.len());
-            info!("Setting from history");
-            info!(?ov, ?history_idx);
-            if *history_idx == 0 {
-                console.input = ov.clone();
-            } else {
-                let idx = fh[fh.len() - *history_idx - 1];
-                console.input = console.history[idx].clone();
-            }
+    let In((up, console_id)) = input;
+    let mut console = q_console.get_mut(console_id).unwrap();
+    if up {
+        if filtered_history.is_none() {
+            *original_value = Some(std::mem::take(&mut console.input));
+            let f = console
+                .history
+                .iter()
+                .enumerate()
+                .filter_map(|(i, s)| s.starts_with(original_value.as_ref().unwrap()).then_some(i))
+                .collect::<Vec<_>>();
+            *filtered_history = Some(f);
+        }
+        let fh = filtered_history.as_ref().unwrap();
+        let ov = original_value.as_ref().unwrap();
+        *history_idx = (*history_idx + 1).clamp(0, fh.len());
+        info!("Setting from history");
+        info!(?ov, ?history_idx);
+        if *history_idx == 0 {
+            console.input = ov.clone();
         } else {
-            *filtered_history = None;
-            *original_value = None;
+            let idx = fh[fh.len() - *history_idx - 1];
+            console.input = (console.history)[idx].clone();
+        }
+    } else if filtered_history.is_some() {
+        let fh = filtered_history.as_ref().unwrap();
+        let ov = original_value.as_ref().unwrap();
+        *history_idx = (*history_idx - 1).clamp(0, fh.len());
+        info!("Setting from history");
+        info!(?ov, ?history_idx);
+        if *history_idx == 0 {
+            console.input = ov.clone();
+        } else {
+            let idx = fh[fh.len() - *history_idx - 1];
+            console.input = console.history[idx].clone();
         }
     } else {
-        error!("Could not access console history")
+        *filtered_history = None;
+        *original_value = None;
+    }
+}
+
+fn keyboard_input(
+    button_inputs: Res<ButtonInput<KeyCode>>, // for modifiers
+    mut input_events: MessageReader<KeyboardInput>,
+    focus: Res<InputFocus>,
+    mut q_console: Query<(&mut Console, &ConsoleBufferView)>,
+    mut commands: Commands,
+) {
+    if !input_events.is_empty()
+        && let Some(console_id) = focus.0
+        && let Ok((mut console, buffer_view)) = q_console.get_mut(console_id)
+    {
+        let mut needs_refresh = false;
+        // assumes console buffer can be written to right now
+        // this is always true in real terminals
+        for event in input_events.read() {
+            if button_inputs.just_pressed(event.key_code) {
+                match event.logical_key {
+                    Key::ArrowUp | Key::ArrowDown => {
+                        commands.run_system_cached_with(
+                            set_from_history,
+                            (matches!(event.key_code, KeyCode::ArrowUp), console_id),
+                        );
+                        needs_refresh = true;
+                    }
+                    Key::Enter => {
+                        commands.write_message(ConsoleSubmitMsg { console_id });
+                        needs_refresh = true;
+                    }
+                    Key::Character(ref c) => {
+                        console.input = format!("{}{}", console.input, c);
+                        needs_refresh = true;
+                    }
+                    Key::Space => {
+                        console.input.push(' ');
+                        needs_refresh = true;
+                    }
+                    Key::Backspace => {
+                        console.input.pop();
+                        needs_refresh = true;
+                    }
+                    Key::Tab => {
+                        // completion
+                        needs_refresh = true;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if needs_refresh {
+            commands.entity(console_id).insert(*buffer_view);
+        }
     }
 }
 

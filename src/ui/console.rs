@@ -89,7 +89,7 @@ impl ConsoleBufferView {
         lines: usize,
         prompt_lines: usize,
     ) -> Self {
-        let range = ((line_height / container_height) as usize).saturating_sub(prompt_lines);
+        let range = ((container_height / line_height) as usize).saturating_sub(prompt_lines);
         ConsoleBufferView {
             start: lines.saturating_sub(range),
             range,
@@ -111,17 +111,18 @@ impl ConsoleBufferView {
                 &Console,
                 &ConsoleBufferView,
             ),
-            Changed<ComputedNode>,
+            Or<(Changed<ComputedNode>, Added<ConsoleBufferView>)>,
         >,
         mut commands: Commands,
     ) {
         for (entity, node, settings, console, view) in q {
-            commands.entity(entity).insert(view.resize(
+            let new_view = view.resize(
                 node.size().y,
                 settings.line_height(),
                 console.buffer.lines().count(),
                 console.prompt.lines().count(),
-            ));
+            );
+            commands.entity(entity).insert(new_view);
         }
     }
 }
@@ -170,7 +171,7 @@ impl Console {
             .observe(Self::on_scroll);
     }
     fn on_click(trigger: On<Pointer<Click>>, mut focus: ResMut<InputFocus>) {
-        focus.0 = Some(trigger.entity);
+        focus.set(trigger.entity);
     }
 
     fn on_scroll(trigger: On<Pointer<Scroll>>, mut commands: Commands) {
