@@ -674,6 +674,7 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_dylib",
  "clap",
+ "cosmic-text",
  "regex",
  "shlex",
  "strum",

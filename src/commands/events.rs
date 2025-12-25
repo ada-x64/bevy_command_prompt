@@ -1,3 +1,4 @@
+use bevy::text::ComputedTextBlock;
 use strum::IntoEnumIterator;
 
 use crate::prelude::*;
@@ -38,7 +39,7 @@ fn builtins(
             console.buffer.clear();
             commands
                 .entity(entity)
-                .insert(view.jump_to_bottom(console.buffer.lines().count()));
+                .insert(view.jump_to_bottom(&console));
         }
     }
 }

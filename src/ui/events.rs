@@ -11,7 +11,7 @@ fn on_println(
         write!(&mut console.buffer, "\n{}", trigger.message).unwrap();
         commands
             .entity(trigger.console_id)
-            .insert(view.jump_to_bottom(console.buffer.lines().count()));
+            .insert(view.jump_to_bottom(&console));
     } else {
         error!("Couldn't print to console with id {}", trigger.console_id);
     }

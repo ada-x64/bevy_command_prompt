@@ -32,51 +32,46 @@ fn on_submit_msg(
 }
 
 fn set_from_history(
-    input: In<(bool, Entity)>,
+    input: In<(Key, Entity)>,
     mut q_console: Query<&mut Console>,
     mut history_idx: Local<usize>,
     mut filtered_history: Local<Option<Vec<usize>>>,
     mut original_value: Local<Option<String>>,
 ) {
-    let In((up, console_id)) = input;
+    let In((key, console_id)) = input;
+    let mut value = 0;
+    match key {
+        Key::ArrowUp => value = 1,
+        Key::ArrowDown => value = -1,
+        Key::Enter => {
+            *history_idx = 0;
+            *filtered_history = None;
+            *original_value = None;
+            value = 0;
+        }
+        _ => {}
+    }
     let mut console = q_console.get_mut(console_id).unwrap();
-    if up {
-        if filtered_history.is_none() {
-            *original_value = Some(std::mem::take(&mut console.input));
-            let f = console
-                .history
-                .iter()
-                .enumerate()
-                .filter_map(|(i, s)| s.starts_with(original_value.as_ref().unwrap()).then_some(i))
-                .collect::<Vec<_>>();
-            *filtered_history = Some(f);
-        }
+    if filtered_history.is_none() {
+        *original_value = Some(std::mem::take(&mut console.input));
+        let f = console
+            .history
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| s.starts_with(original_value.as_ref().unwrap()).then_some(i))
+            .collect::<Vec<_>>();
+        *filtered_history = Some(f);
+    }
+    if matches!(key, Key::ArrowUp | Key::ArrowDown) {
         let fh = filtered_history.as_ref().unwrap();
         let ov = original_value.as_ref().unwrap();
-        *history_idx = (*history_idx + 1).clamp(0, fh.len());
-        info!("Setting from history");
-        info!(?ov, ?history_idx);
+        *history_idx = history_idx.saturating_add_signed(value).min(fh.len());
         if *history_idx == 0 {
             console.input = ov.clone();
         } else {
-            let idx = fh[fh.len() - *history_idx - 1];
-            console.input = (console.history)[idx].clone();
-        }
-    } else if filtered_history.is_some() {
-        let fh = filtered_history.as_ref().unwrap();
-        let ov = original_value.as_ref().unwrap();
-        *history_idx = (*history_idx - 1).clamp(0, fh.len());
-        info!("Setting from history");
-        info!(?ov, ?history_idx);
-        if *history_idx == 0 {
-            console.input = ov.clone();
-        } else {
-            let idx = fh[fh.len() - *history_idx - 1];
+            let idx = fh[fh.len().saturating_sub(*history_idx + 1)];
             console.input = console.history[idx].clone();
         }
-    } else {
-        *filtered_history = None;
-        *original_value = None;
     }
 }
 
@@ -96,12 +91,12 @@ fn keyboard_input(
         // this is always true in real terminals
         for event in input_events.read() {
             if button_inputs.just_pressed(event.key_code) {
+                commands.run_system_cached_with(
+                    set_from_history,
+                    (event.logical_key.clone(), console_id),
+                );
                 match event.logical_key {
                     Key::ArrowUp | Key::ArrowDown => {
-                        commands.run_system_cached_with(
-                            set_from_history,
-                            (matches!(event.key_code, KeyCode::ArrowUp), console_id),
-                        );
                         needs_refresh = true;
                     }
                     Key::Enter => {
@@ -117,7 +112,15 @@ fn keyboard_input(
                         needs_refresh = true;
                     }
                     Key::Backspace => {
-                        console.input.pop();
+                        if button_inputs.pressed(KeyCode::ControlLeft)
+                            || button_inputs.pressed(KeyCode::ControlRight)
+                        {
+                            let last_ws =
+                                console.input.rfind(char::is_whitespace).unwrap_or_default();
+                            console.input.truncate(last_ws);
+                        } else {
+                            console.input.pop();
+                        }
                         needs_refresh = true;
                     }
                     Key::Tab => {
@@ -129,7 +132,9 @@ fn keyboard_input(
             }
         }
         if needs_refresh {
-            commands.entity(console_id).insert(*buffer_view);
+            commands
+                .entity(console_id)
+                .insert(buffer_view.jump_to_bottom(&console));
         }
     }
 }
@@ -138,7 +143,7 @@ fn on_scroll(
     mut reader: MessageReader<ConsoleScrollMsg>,
     mut commands: Commands,
     settings_q: Query<&ConsoleUiSettings>,
-    view_q: Query<&ConsoleBufferView>,
+    console_q: Query<(&Console, &ConsoleBufferView)>,
 ) {
     let mut map = HashMap::<Entity, Vec2>::new();
     for msg in reader.read() {
@@ -150,12 +155,21 @@ fn on_scroll(
             }
         };
         map.entry(msg.console_id)
-            .and_modify(|d| *d += delta)
+            .and_modify(|d| *d -= delta)
             .or_insert(delta);
     }
     for (console_id, delta) in map.into_iter() {
-        let view = view_q.get(console_id).unwrap();
-        let start = view.start.saturating_add_signed(delta.y as isize);
+        let (console, view) = console_q.get(console_id).unwrap();
+        let range = view.range;
+        let buffer_size = console.buffer.lines().count();
+        let prompt_size = console.prompt.lines().count();
+        if buffer_size <= range {
+            continue; // disable scroll. this should be handled elsewhere.
+        }
+        let start = view
+            .start
+            .saturating_add_signed(delta.y as isize)
+            .min(buffer_size - range + prompt_size);
         let new_view = ConsoleBufferView { start, ..*view };
         commands.entity(console_id).insert(new_view);
     }

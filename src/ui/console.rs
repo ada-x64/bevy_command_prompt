@@ -13,6 +13,7 @@ pub struct ConsoleUiSettings {
     pub font: TextFont,
     pub font_color: Color,
     pub background_color: Color,
+    pub text_layout: TextLayout,
 }
 impl Default for ConsoleUiSettings {
     fn default() -> Self {
@@ -23,6 +24,7 @@ impl Default for ConsoleUiSettings {
             },
             font_color: WHITE.into(),
             background_color: BLACK.into(),
+            text_layout: TextLayout::default(),
         }
     }
 }
@@ -34,6 +36,7 @@ impl ConsoleUiSettings {
                 BackgroundColor(this.background_color),
                 this.font.clone(),
                 TextColor(this.font_color),
+                this.text_layout,
             )
         };
         world.commands().entity(ctx.entity).insert(bundle);
@@ -96,11 +99,11 @@ impl ConsoleBufferView {
             ..self
         }
     }
-    pub fn jump_to_bottom(self, lines: usize) -> Self {
-        Self {
-            start: lines.saturating_sub(self.range),
-            ..self
-        }
+    pub fn jump_to_bottom(self, console: &Console) -> Self {
+        let count = console.buffer.lines().count();
+        let prompt_size = console.prompt.lines().count();
+        let start = count.saturating_sub(self.range).saturating_add(prompt_size);
+        Self { start, ..self }
     }
     pub(crate) fn on_resize(
         q: Query<
@@ -131,6 +134,9 @@ impl ConsoleBufferView {
 #[require(Node, ConsoleUiSettings)]
 #[component(on_add=Self::on_add)]
 pub struct Console {
+    /// unwrapped buffer for raw output.
+    /// to get the actual formatted buffer string (e.g. for buffer view)
+    /// get the [bevy::text::ComputedTextBlock::buffer] for this entity.
     pub(crate) buffer: String,
     pub(crate) input: String,
     pub prompt: String,
