@@ -18,26 +18,30 @@ This project would not exist without inspiration from the following sources:
 - [x] Command parsing with [clap](https://crates.io/crates/clap)
 - [x] Command history
 - [ ] Basic built-in commands
-    - [x] `clear` - clears the console
-    - [ ] `show` - list available commands, registered components, active entities, resources, assets, etc
+  - [x] `clear` - clears the console
+  - [x] `show` - list available commands, registered components, active entities, resources, assets, etc
+  - [ ] `less` - basic pager
 - [ ] Command completion
-    - [ ] Command names
-    - [ ] Command parameters (when possible choices are enumerated)
-- [ ] Basic keyboard shortcuts (`^C`, `^L`, `tab`, ` \` `, up arrow)
-- [ ] Customizable UI
+  - [ ] Command names
+  - [ ] Command parameters (when possible choices are enumerated)
+- [ ] Basic keyboard shortcuts (`^C`, `^L`)
+- [x] Customizable UI
+- [x] Custom actions
+- [x] Virtual scrolling
 
 ### Stretch goals
 
 - [ ] Dynamic entity selection / query language a la brigadier
 - [ ] Picker support
 - [ ] Multi-channel IO
-    - i.e. STDIN/STDOUT/STDERR split to allow command interaction
+  - i.e. STDIN/STDOUT/STDERR split to allow command interaction
 - [ ] Signal support (e.g. `^C` sends a signal to the currently executing command)
-    - dependent on multi-channel io
+  - dependent on multi-channel io
 - [ ] Environment variable support
-    - Simple key/value string store.
-- [ ] Virtual scrolling for large command history
+  - Simple key/value string store.
 - [ ] Colorized commands with ANSI escapes
+- [ ] Text selection, Copy/paste
+  - Requires custom text rendering with comsic_text::edit
 
 ## Design principles
 

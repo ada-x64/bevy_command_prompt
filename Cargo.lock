@@ -677,8 +677,10 @@ dependencies = [
  "cosmic-text",
  "regex",
  "shlex",
+ "smol_str",
  "strum",
  "tiny_bail",
+ "variadics_please",
 ]
 
 [[package]]

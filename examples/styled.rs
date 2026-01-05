@@ -30,6 +30,7 @@ pub fn main() {
                         },
                         font_color: tailwind::AMBER_700.into(),
                         background_color: tailwind::SLATE_200.into(),
+                        text_layout: TextLayout::default(),
                     }
                 ],
             ));

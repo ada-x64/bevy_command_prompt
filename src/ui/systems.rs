@@ -31,53 +31,11 @@ fn on_submit_msg(
     }
 }
 
-fn set_from_history(
-    input: In<(Key, Entity)>,
-    mut q_console: Query<&mut Console>,
-    mut history_idx: Local<usize>,
-    mut filtered_history: Local<Option<Vec<usize>>>,
-    mut original_value: Local<Option<String>>,
-) {
-    let In((key, console_id)) = input;
-    let mut value = 0;
-    match key {
-        Key::ArrowUp => value = 1,
-        Key::ArrowDown => value = -1,
-        Key::Enter => {
-            *history_idx = 0;
-            *filtered_history = None;
-            *original_value = None;
-            value = 0;
-        }
-        _ => {}
-    }
-    let mut console = q_console.get_mut(console_id).unwrap();
-    if filtered_history.is_none() {
-        *original_value = Some(std::mem::take(&mut console.input));
-        let f = console
-            .history
-            .iter()
-            .enumerate()
-            .filter_map(|(i, s)| s.starts_with(original_value.as_ref().unwrap()).then_some(i))
-            .collect::<Vec<_>>();
-        *filtered_history = Some(f);
-    }
-    if matches!(key, Key::ArrowUp | Key::ArrowDown) {
-        let fh = filtered_history.as_ref().unwrap();
-        let ov = original_value.as_ref().unwrap();
-        *history_idx = history_idx.saturating_add_signed(value).min(fh.len());
-        if *history_idx == 0 {
-            console.input = ov.clone();
-        } else {
-            let idx = fh[fh.len().saturating_sub(*history_idx + 1)];
-            console.input = console.history[idx].clone();
-        }
-    }
-}
-
 fn keyboard_input(
-    button_inputs: Res<ButtonInput<KeyCode>>, // for modifiers
+    key_codes: Res<ButtonInput<KeyCode>>, // for modifiers
+    keys: Res<ButtonInput<Key>>,          // for modifiers
     mut input_events: MessageReader<KeyboardInput>,
+    actions: Res<ConsoleActionCache>,
     focus: Res<InputFocus>,
     mut q_console: Query<(&mut Console, &ConsoleBufferView)>,
     mut commands: Commands,
@@ -87,18 +45,45 @@ fn keyboard_input(
         && let Ok((mut console, buffer_view)) = q_console.get_mut(console_id)
     {
         let mut needs_refresh = false;
+
+        // TODO: TEST ME
+        let current_actions = actions.keys().filter(|action| {
+            let no_bad_keys = !action
+                .keys
+                .iter()
+                .all(|or_group| or_group.iter().any(|key| keys.pressed(key.clone())));
+
+            let keys_ok = action
+                .keys
+                .iter()
+                .all(|or_group| or_group.iter().any(|key| keys.pressed(key.clone())));
+
+            let no_bad_mods = !action
+                .modifiers
+                .iter()
+                .all(|or_group| or_group.iter().any(|key_code| key_codes.pressed(*key_code)));
+
+            let mods_ok = action
+                .modifiers
+                .iter()
+                .all(|or_group| or_group.iter().any(|key_code| key_codes.pressed(*key_code)));
+
+            keys_ok && mods_ok && no_bad_keys && no_bad_mods
+        });
+
+        for action in current_actions {
+            commands.trigger(ConsoleActionEvent {
+                action: action.clone(),
+                console_id,
+            });
+            needs_refresh = true;
+        }
+
         // assumes console buffer can be written to right now
         // this is always true in real terminals
         for event in input_events.read() {
-            if button_inputs.just_pressed(event.key_code) {
-                commands.run_system_cached_with(
-                    set_from_history,
-                    (event.logical_key.clone(), console_id),
-                );
+            if key_codes.just_pressed(event.key_code) {
                 match event.logical_key {
-                    Key::ArrowUp | Key::ArrowDown => {
-                        needs_refresh = true;
-                    }
                     Key::Enter => {
                         commands.write_message(ConsoleSubmitMsg { console_id });
                         needs_refresh = true;
@@ -111,22 +96,6 @@ fn keyboard_input(
                         console.input.push(' ');
                         needs_refresh = true;
                     }
-                    Key::Backspace => {
-                        if button_inputs.pressed(KeyCode::ControlLeft)
-                            || button_inputs.pressed(KeyCode::ControlRight)
-                        {
-                            let last_ws =
-                                console.input.rfind(char::is_whitespace).unwrap_or_default();
-                            console.input.truncate(last_ws);
-                        } else {
-                            console.input.pop();
-                        }
-                        needs_refresh = true;
-                    }
-                    Key::Tab => {
-                        // completion
-                        needs_refresh = true;
-                    }
                     _ => {}
                 }
             }
@@ -136,6 +105,7 @@ fn keyboard_input(
                 .entity(console_id)
                 .insert(buffer_view.jump_to_bottom(&console));
         }
+        debug!(?console);
     }
 }
 

@@ -134,13 +134,14 @@ impl ConsoleBufferView {
 #[require(Node, ConsoleUiSettings)]
 #[component(on_add=Self::on_add)]
 pub struct Console {
-    /// unwrapped buffer for raw output.
+    /// raw output buffer
     /// to get the actual formatted buffer string (e.g. for buffer view)
     /// get the [bevy::text::ComputedTextBlock::buffer] for this entity.
     pub(crate) buffer: String,
     pub(crate) input: String,
     pub prompt: String,
     pub(crate) history: Vec<String>,
+    pub(crate) cursor: usize,
 }
 impl Default for Console {
     fn default() -> Self {
@@ -149,6 +150,7 @@ impl Default for Console {
             input: Default::default(),
             prompt: "> ".into(),
             history: Default::default(),
+            cursor: 0,
         }
     }
 }
