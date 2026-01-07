@@ -4,7 +4,13 @@ use bevy_command_prompt::{ConsolePlugin, prelude::*};
 
 pub fn main() {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins);
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            resolution: (640, 480).into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }));
     // app.add_plugins(EguiPlugin::default());
     // app.add_plugins(WorldInspectorPlugin::default());
     app.add_plugins(ConsolePlugin);

@@ -1,51 +1,35 @@
 use crate::prelude::*;
-use bevy::{ecs::system::IntoObserverSystem, platform::collections::HashMap};
-
-#[derive(Clone, Debug, Event, PartialEq, Eq, Hash)]
-pub struct ConsoleActionEvent {
-    pub action: ConsoleAction,
-    pub console_id: Entity,
-}
-
-/// Marker component for console action observer entities.
-#[derive(Component, Debug)]
-pub struct ConsoleActionObserver;
-
-pub trait IntoConsoleActionObserverSystem<M>:
-    IntoObserverSystem<ConsoleActionEvent, (), M>
-{
-}
-impl<T, M> IntoConsoleActionObserverSystem<M> for T where
-    T: IntoObserverSystem<ConsoleActionEvent, (), M>
-{
-}
+use bevy::{ecs::system::SystemId, input::keyboard::Key, platform::collections::HashMap};
 
 /// Stores all the registered console actions.
 #[derive(Resource, Debug, Deref, DerefMut, Default)]
-pub struct ConsoleActionCache(HashMap<ConsoleAction, Entity>);
+pub struct ConsoleActionCache(HashMap<ConsoleAction, SystemId<In<ConsoleActionInput>>>);
+
+pub struct ConsoleActionInput {
+    pub action: ConsoleAction,
+    pub console_id: Entity,
+    pub matched_keys: Vec<Key>,
+    pub matched_mods: Vec<KeyCode>,
+}
 
 pub trait ConsoleActionExt {
     /// Registers a new console action.
     /// This will push a key-value pair to the [ConsoleActionCache]
-    /// and spawn a global observer to watch for the action.
+    /// and register the corresponding system.
     fn register_console_action<M>(
         &mut self,
         action: ConsoleAction,
-        system: impl IntoConsoleActionObserverSystem<M>,
+        system: impl IntoSystem<In<ConsoleActionInput>, (), M> + 'static,
     ) -> &mut Self;
 }
 impl ConsoleActionExt for App {
     fn register_console_action<M>(
         &mut self,
         action: ConsoleAction,
-        system: impl IntoConsoleActionObserverSystem<M>,
+        system: impl IntoSystem<In<ConsoleActionInput>, (), M> + 'static,
     ) -> &mut Self {
         self.world_mut().init_resource::<ConsoleActionCache>();
-        let system = self
-            .world_mut()
-            .add_observer(system)
-            .insert(ConsoleActionObserver)
-            .id();
+        let system = self.world_mut().register_system(system);
         self.world_mut()
             .resource_mut::<ConsoleActionCache>()
             .insert(action, system);

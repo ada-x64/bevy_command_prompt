@@ -46,36 +46,61 @@ fn keyboard_input(
     {
         let mut needs_refresh = false;
 
-        // TODO: TEST ME
-        let current_actions = actions.keys().filter(|action| {
-            let no_bad_keys = !action
-                .keys
+        let current_actions = actions.keys().filter_map(|action| {
+            if action
+                .bad_keys
                 .iter()
-                .all(|or_group| or_group.iter().any(|key| keys.pressed(key.clone())));
-
-            let keys_ok = action
-                .keys
+                .any(|or_group| or_group.iter().any(|key| keys.just_pressed(key.clone())))
+            {
+                return None;
+            }
+            if action
+                .bad_mods
                 .iter()
-                .all(|or_group| or_group.iter().any(|key| keys.pressed(key.clone())));
+                .any(|or_group| or_group.iter().any(|key_code| key_codes.pressed(*key_code)))
+            {
+                return None;
+            }
 
-            let no_bad_mods = !action
-                .modifiers
-                .iter()
-                .all(|or_group| or_group.iter().any(|key_code| key_codes.pressed(*key_code)));
-
-            let mods_ok = action
-                .modifiers
-                .iter()
-                .all(|or_group| or_group.iter().any(|key_code| key_codes.pressed(*key_code)));
-
-            keys_ok && mods_ok && no_bad_keys && no_bad_mods
-        });
-
-        for action in current_actions {
-            commands.trigger(ConsoleActionEvent {
-                action: action.clone(),
-                console_id,
+            let matched_keys = action.keys.iter().try_fold(vec![], |mut res, or_group| {
+                or_group
+                    .iter()
+                    .find(|key| keys.just_pressed((**key).clone()))
+                    .map(|found| {
+                        res.push(found.clone());
+                        res
+                    })
             });
+
+            let matched_mods = action
+                .modifiers
+                .iter()
+                .try_fold(vec![], |mut res, or_group| {
+                    or_group
+                        .iter()
+                        .find(|key| key_codes.pressed(**key))
+                        .map(|found| {
+                            res.push(*found);
+                            res
+                        })
+                });
+            matched_keys
+                .zip(matched_mods)
+                .map(|(keys, mods)| (action.clone(), keys, mods))
+        });
+        for (action, matched_keys, matched_mods) in current_actions {
+            info!("Firing action {action:?}");
+            let id = actions.get(&action).unwrap();
+
+            commands.run_system_with(
+                *id,
+                ConsoleActionInput {
+                    action,
+                    console_id,
+                    matched_keys,
+                    matched_mods,
+                },
+            );
             needs_refresh = true;
         }
 

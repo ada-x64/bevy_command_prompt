@@ -2,12 +2,12 @@ use crate::prelude::*;
 use bevy::input::keyboard::Key;
 use variadics_please::all_tuples;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Asset, Reflect)]
 pub struct ConsoleAction {
-    pub keys: Vec<Vec<Key>>,
-    pub modifiers: Vec<Vec<KeyCode>>,
-    pub without_keys: Vec<Vec<Key>>,
-    pub without_modifiers: Vec<Vec<KeyCode>>,
+    pub keys: KeyInput,
+    pub modifiers: ModifierInput,
+    pub bad_keys: KeyInput,
+    pub bad_mods: ModifierInput,
 }
 
 impl ConsoleAction {
@@ -26,8 +26,7 @@ impl ConsoleAction {
     /// [ButtonInput::just_pressed] matches the given expression.
     pub fn new(keys: impl Into<KeyInput>) -> Self {
         Self {
-            keys: keys.into().0,
-            modifiers: vec![],
+            keys: keys.into(),
             ..Default::default()
         }
     }
@@ -39,21 +38,21 @@ impl ConsoleAction {
     /// the modifiers are held.
     pub fn with_modifiers(self, modifiers: impl Into<ModifierInput>) -> Self {
         Self {
-            modifiers: modifiers.into().0,
+            modifiers: modifiers.into(),
             ..self
         }
     }
 
     pub fn without(self, keys: impl Into<KeyInput>) -> Self {
         Self {
-            without_keys: keys.into().0,
+            bad_keys: keys.into(),
             ..self
         }
     }
 
     pub fn without_modifiers(self, keys: impl Into<ModifierInput>) -> Self {
         Self {
-            without_modifiers: keys.into().0,
+            bad_mods: keys.into(),
             ..self
         }
     }
@@ -72,7 +71,9 @@ impl ConsoleAction {
 }
 
 // Wrapper types for Into implementations
+#[derive(Debug, Deref, DerefMut, Clone, PartialEq, Eq, Hash, Default, Reflect)]
 pub struct KeyInput(Vec<Vec<Key>>);
+#[derive(Debug, Deref, DerefMut, Clone, PartialEq, Eq, Hash, Default, Reflect)]
 pub struct ModifierInput(Vec<Vec<KeyCode>>);
 
 // Helper trait to convert things into OR groups (Vec<Key>)

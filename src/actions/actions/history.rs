@@ -4,16 +4,14 @@ use crate::prelude::*;
 
 /// Sets the
 pub fn set_from_history(
-    trigger: On<ConsoleActionEvent>,
+    input: In<ConsoleActionInput>,
     mut q_console: Query<&mut Console>,
     mut history_idx: Local<usize>,
     mut filtered_history: Local<Option<Vec<usize>>>,
     mut original_value: Local<Option<String>>,
 ) {
-    let event = trigger.event();
-    let ConsoleActionEvent { action, console_id } = event;
+    let key = input.matched_keys.first().unwrap();
     let mut value = 0;
-    let key = action.get_single().unwrap();
     match key {
         Key::ArrowUp => value = 1,
         Key::ArrowDown => value = -1,
@@ -25,7 +23,7 @@ pub fn set_from_history(
         _ => {}
     }
     if matches!(key, Key::ArrowUp | Key::ArrowDown) {
-        let mut console = q_console.get_mut(*console_id).unwrap();
+        let mut console = q_console.get_mut(input.console_id).unwrap();
         if filtered_history.is_none() {
             *original_value = Some(std::mem::take(&mut console.input));
             let f = console
