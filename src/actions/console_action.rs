@@ -1,16 +1,58 @@
 use crate::prelude::*;
-use bevy::input::keyboard::Key;
+use bevy::input::keyboard::{Key, KeyboardInput};
+use bevy::input::mouse::{AccumulatedMouseScroll, MouseButton, MouseButtonInput};
 use variadics_please::all_tuples;
 
+#[derive(Debug, Clone, Reflect)]
+pub enum MatchedInput {
+    Key(KeyboardInput),
+    Mouse(MouseButtonInput),
+    Scroll(AccumulatedMouseScroll),
+}
+impl From<KeyboardInput> for MatchedInput {
+    fn from(value: KeyboardInput) -> Self {
+        MatchedInput::Key(value)
+    }
+}
+impl From<MouseButtonInput> for MatchedInput {
+    fn from(value: MouseButtonInput) -> Self {
+        MatchedInput::Mouse(value)
+    }
+}
+impl From<AccumulatedMouseScroll> for MatchedInput {
+    fn from(value: AccumulatedMouseScroll) -> Self {
+        MatchedInput::Scroll(value)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Reflect)]
+pub enum ConsoleInput {
+    AnyKey,
+    AnyCharacter,
+    Key(Key),
+    Mouse(MouseButton),
+    Scroll,
+}
+impl From<Key> for ConsoleInput {
+    fn from(key: Key) -> Self {
+        ConsoleInput::Key(key)
+    }
+}
+impl From<MouseButton> for ConsoleInput {
+    fn from(button: MouseButton) -> Self {
+        ConsoleInput::Mouse(button)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default, Asset, Reflect)]
-pub struct ConsoleAction {
+pub struct ConsoleActionKeybind {
     pub keys: KeyInput,
     pub modifiers: ModifierInput,
     pub bad_keys: KeyInput,
     pub bad_mods: ModifierInput,
 }
 
-impl ConsoleAction {
+impl ConsoleActionKeybind {
     /// Creates a new [ConsoleAction] with the given keys.
     ///
     /// Accepts flexible input formats:
@@ -57,13 +99,105 @@ impl ConsoleAction {
         }
     }
 
-    /// Returns the key vec's only member, or None if there are multiple.
-    pub fn get_single(&self) -> Option<Key> {
-        if self.keys.len() == 1
-            && let Some(vec) = self.keys.first()
-            && vec.len() == 1
+    fn matches(
+        vec: &Vec<Vec<ConsoleInput>>,
+        input_events: &[&KeyboardInput],
+        mouse_events: &[&MouseButtonInput],
+        key_input: &ButtonInput<Key>,
+        mouse_input: &ButtonInput<MouseButton>,
+        scroll: Option<&AccumulatedMouseScroll>,
+    ) -> Option<Vec<MatchedInput>> {
+        vec.into_iter().try_fold(vec![], |mut res, or_group| {
+            let matched = or_group.into_iter().find_map(|key| match key {
+                ConsoleInput::AnyCharacter => input_events.iter().find_map(|k| {
+                    if let Key::Character(_) = k.logical_key
+                        && key_input.just_pressed(k.logical_key.clone())
+                    {
+                        return Some((**k).clone().into());
+                    } else {
+                        return None;
+                    }
+                }),
+                ConsoleInput::AnyKey => input_events.first().map(|k| (**k).clone().into()),
+                ConsoleInput::Key(logical_key) => key_input
+                    .just_pressed(logical_key.clone())
+                    .then(|| {
+                        input_events.iter().find_map(|input| {
+                            (input.logical_key == *logical_key).then_some((**input).clone().into())
+                        })
+                    })
+                    .flatten(),
+                ConsoleInput::Mouse(button) => mouse_events.iter().find_map(|m| {
+                    if m.button == *button && mouse_input.just_pressed(m.button) {
+                        return Some((*m).clone().into());
+                    } else {
+                        return None;
+                    }
+                }),
+                ConsoleInput::Scroll => scroll.map(|s| (*s).clone().into()),
+            });
+
+            if let Some(key) = matched {
+                res.push(key);
+                return Some(res);
+            } else {
+                return None;
+            }
+        })
+    }
+    fn mod_matches(vec: &Vec<Vec<KeyCode>>, keys: &ButtonInput<KeyCode>) -> Option<Vec<KeyCode>> {
+        vec.into_iter().try_fold(vec![], |mut res, or_group| {
+            let matched = or_group.into_iter().find(|key| keys.pressed(**key));
+            if let Some(key) = matched {
+                res.push(key.clone());
+                return Some(res);
+            } else {
+                return None;
+            }
+        })
+    }
+
+    pub fn to_system_input(
+        &self,
+        input_events: &[&KeyboardInput],
+        mouse_events: &[&MouseButtonInput],
+        keys: &ButtonInput<Key>,
+        key_codes: &ButtonInput<KeyCode>,
+        mouse_input: &ButtonInput<MouseButton>,
+        scroll: Option<&AccumulatedMouseScroll>,
+        console_id: Entity,
+    ) -> Option<ConsoleActionSystemInput> {
+        if Self::matches(
+            &self.bad_keys,
+            input_events,
+            mouse_events,
+            keys,
+            mouse_input,
+            scroll,
+        )
+        .is_some()
+            || Self::mod_matches(&self.bad_mods, key_codes).is_some()
         {
-            vec.first().cloned()
+            return None;
+        }
+        let matched_keys = Self::matches(
+            &self.keys,
+            input_events,
+            mouse_events,
+            keys,
+            mouse_input,
+            scroll,
+        );
+        let matched_mods = Self::mod_matches(&self.modifiers, key_codes);
+
+        if let Some(matched_keys) = matched_keys
+            && let Some(matched_mods) = matched_mods
+        {
+            Some(ConsoleActionSystemInput {
+                console_id,
+                matched_input: matched_keys,
+                matched_mods,
+            })
         } else {
             None
         }
@@ -72,32 +206,38 @@ impl ConsoleAction {
 
 // Wrapper types for Into implementations
 #[derive(Debug, Deref, DerefMut, Clone, PartialEq, Eq, Hash, Default, Reflect)]
-pub struct KeyInput(Vec<Vec<Key>>);
+pub struct KeyInput(Vec<Vec<ConsoleInput>>);
 #[derive(Debug, Deref, DerefMut, Clone, PartialEq, Eq, Hash, Default, Reflect)]
 pub struct ModifierInput(Vec<Vec<KeyCode>>);
 
 // Helper trait to convert things into OR groups (Vec<Key>)
 pub trait IntoKeyGroup {
-    fn into_key_group(self) -> Vec<Key>;
+    fn into_key_group(self) -> Vec<ConsoleInput>;
 }
 
 // Single key becomes a group of one
-impl IntoKeyGroup for Key {
-    fn into_key_group(self) -> Vec<Key> {
-        vec![self]
+impl<K> IntoKeyGroup for K
+where
+    K: Into<ConsoleInput>,
+{
+    fn into_key_group(self) -> Vec<ConsoleInput> {
+        vec![self.into()]
     }
 }
 
 // Array becomes an OR group
-impl<const N: usize> IntoKeyGroup for [Key; N] {
-    fn into_key_group(self) -> Vec<Key> {
-        self.into()
+impl<const N: usize, K> IntoKeyGroup for [K; N]
+where
+    K: Into<ConsoleInput>,
+{
+    fn into_key_group(self) -> Vec<ConsoleInput> {
+        self.into_iter().map(|k| k.into()).collect()
     }
 }
 
 // Already a group
-impl IntoKeyGroup for Vec<Key> {
-    fn into_key_group(self) -> Vec<Key> {
+impl IntoKeyGroup for Vec<ConsoleInput> {
+    fn into_key_group(self) -> Vec<ConsoleInput> {
         self
     }
 }
@@ -105,22 +245,28 @@ impl IntoKeyGroup for Vec<Key> {
 // Now implement KeyInput conversions
 
 // Single key
-impl From<Key> for KeyInput {
-    fn from(key: Key) -> Self {
-        KeyInput(vec![vec![key]])
+impl<K> From<K> for KeyInput
+where
+    K: Into<ConsoleInput>,
+{
+    fn from(key: K) -> Self {
+        KeyInput(vec![vec![key.into()]])
     }
 }
 
 // Single array (OR group)
-impl<const N: usize> From<[Key; N]> for KeyInput {
-    fn from(keys: [Key; N]) -> Self {
-        KeyInput(vec![keys.into()])
+impl<const N: usize, K> From<[K; N]> for KeyInput
+where
+    K: Into<ConsoleInput>,
+{
+    fn from(keys: [K; N]) -> Self {
+        KeyInput(vec![keys.into_iter().map(|k| k.into()).collect()])
     }
 }
 
 // Direct Vec<Vec<Key>> for backward compatibility
-impl From<Vec<Vec<Key>>> for KeyInput {
-    fn from(keys: Vec<Vec<Key>>) -> Self {
+impl From<Vec<Vec<ConsoleInput>>> for KeyInput {
+    fn from(keys: Vec<Vec<ConsoleInput>>) -> Self {
         KeyInput(keys)
     }
 }

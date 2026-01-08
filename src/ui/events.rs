@@ -1,14 +1,12 @@
-use std::fmt::Write;
-
 use crate::prelude::*;
 
 fn on_println(
     trigger: On<ConsolePrintln>,
     mut commands: Commands,
-    mut console_q: Query<(&ConsoleBufferView, &mut Console)>,
+    mut console_q: Query<(&ConsoleBufferView, &mut ConsoleWriteQueue)>,
 ) {
-    if let Ok((view, mut console)) = console_q.get_mut(trigger.console_id) {
-        write!(&mut console.buffer, "\n{}", trigger.message).unwrap();
+    if let Ok((view, mut queue)) = console_q.get_mut(trigger.console_id) {
+        queue.push(trigger.message);
         commands
             .entity(trigger.console_id)
             .insert(view.jump_to_bottom(&console));

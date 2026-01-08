@@ -1,53 +1,10 @@
 use crate::prelude::*;
 use bevy::{
-    color::palettes::css::{BLACK, WHITE},
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     input_focus::InputFocus,
+    text::ComputedTextBlock,
     ui::ui_layout_system,
 };
-
-#[derive(Component, Debug, Reflect, Clone)]
-#[component(immutable, on_insert=Self::on_insert)]
-#[require(Node)]
-pub struct ConsoleUiSettings {
-    pub font: TextFont,
-    pub font_color: Color,
-    pub background_color: Color,
-    pub text_layout: TextLayout,
-}
-impl Default for ConsoleUiSettings {
-    fn default() -> Self {
-        Self {
-            font: TextFont {
-                font_size: 12.,
-                ..Default::default()
-            },
-            font_color: WHITE.into(),
-            background_color: BLACK.into(),
-            text_layout: TextLayout::default(),
-        }
-    }
-}
-impl ConsoleUiSettings {
-    pub fn on_insert<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
-        let bundle = {
-            let this = world.get::<Self>(ctx.entity).unwrap();
-            (
-                BackgroundColor(this.background_color),
-                this.font.clone(),
-                TextColor(this.font_color),
-                this.text_layout,
-            )
-        };
-        world.commands().entity(ctx.entity).insert(bundle);
-    }
-    pub fn line_height(&self) -> f32 {
-        match self.font.line_height {
-            bevy::text::LineHeight::Px(px) => px,
-            bevy::text::LineHeight::RelativeToFont(scale) => self.font.font_size * scale,
-        }
-    }
-}
 
 // TODO: Virtual scrolling requires custom scroll bar.
 #[derive(Component, Debug, Clone, Reflect, Copy)]
@@ -67,6 +24,7 @@ impl ConsoleBufferView {
             range: 0,
         }
     }
+    // TODO: These next two functions need to be rewritten or removed in order to facilitate the new pipeline.
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let text = {
             let view = world.get::<ConsoleBufferView>(ctx.entity).unwrap();
@@ -99,9 +57,9 @@ impl ConsoleBufferView {
             ..self
         }
     }
-    pub fn jump_to_bottom(self, console: &Console) -> Self {
-        let count = console.buffer.lines().count();
-        let prompt_size = console.prompt.lines().count();
+    pub fn jump_to_bottom(self, prompt: &ConsolePrompt, computed_text: &ComputedTextBlock) -> Self {
+        let count = computed_text.buffer().0.layout_runs().count();
+        let prompt_size = prompt.lines().count();
         let start = count.saturating_sub(self.range).saturating_add(prompt_size);
         Self { start, ..self }
     }
@@ -111,19 +69,20 @@ impl ConsoleBufferView {
                 Entity,
                 &ComputedNode,
                 &ConsoleUiSettings,
-                &Console,
+                &ConsolePrompt,
+                &ComputedTextBlock,
                 &ConsoleBufferView,
             ),
             Or<(Changed<ComputedNode>, Added<ConsoleBufferView>)>,
         >,
         mut commands: Commands,
     ) {
-        for (entity, node, settings, console, view) in q {
+        for (entity, node, settings, prompt, block, view) in q {
             let new_view = view.resize(
                 node.size().y,
                 settings.line_height(),
-                console.buffer.lines().count(),
-                console.prompt.lines().count(),
+                block.buffer().layout_runs().count(),
+                prompt.lines().count(),
             );
             commands.entity(entity).insert(new_view);
         }
@@ -131,33 +90,31 @@ impl ConsoleBufferView {
 }
 
 #[derive(Component, Debug, Reflect, Clone)]
-#[require(Node, ConsoleUiSettings)]
+#[require(
+    Node,
+    ConsoleUiSettings,
+    ConsoleBuffer,
+    ConsoleWriteQueue,
+    ConsolePrompt,
+    ConsoleHistory
+)]
 #[component(on_add=Self::on_add)]
 pub struct Console {
     /// raw output buffer
     /// to get the actual formatted buffer string (e.g. for buffer view)
     /// get the [bevy::text::ComputedTextBlock::buffer] for this entity.
-    pub(crate) buffer: String,
     pub(crate) input: String,
-    pub prompt: String,
-    pub(crate) history: Vec<String>,
     pub(crate) cursor: usize,
 }
 impl Default for Console {
     fn default() -> Self {
         Self {
-            buffer: Default::default(),
             input: Default::default(),
-            prompt: "> ".into(),
-            history: Default::default(),
             cursor: 0,
         }
     }
 }
 impl Console {
-    pub fn with_prompt(self, prompt: String) -> Self {
-        Self { prompt, ..self }
-    }
     pub(crate) fn on_add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
         let bundle = (
             Name::new("Console"),

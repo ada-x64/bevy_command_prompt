@@ -1,5 +1,5 @@
 <div align="center">
-<img src="./.doc/logo.png" height=250 alt="Logo - 'bevy command prompt' over a sketch of a green magpie" />
+<img src="./.doc/logo.png" height=300 alt="Logo - 'bevy command prompt' over a sketch of a green magpie" />
 </div>
 
 This is an attempt at a `bevy_ui`-native dev console.
@@ -33,15 +33,18 @@ This project would not exist without inspiration from the following sources:
 
 - [ ] Dynamic entity selection / query language a la brigadier
 - [ ] Picker support
-- [ ] Multi-channel IO
-  - i.e. STDIN/STDOUT/STDERR split to allow command interaction
-- [ ] Signal support (e.g. `^C` sends a signal to the currently executing command)
-  - dependent on multi-channel io
 - [ ] Environment variable support
   - Simple key/value string store.
 - [ ] Colorized commands with ANSI escapes
 - [ ] Text selection, Copy/paste
   - Requires custom text rendering with comsic_text::edit
+
+### Non-goals
+- Multi-channel I/O
+  - e.g. STDIN/STDOUT/STDERR
+- Signal support
+- Advanced ANSI
+  - e.g. cursor commands, blinking characters
 
 ## Design principles
 

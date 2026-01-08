@@ -1,3 +1,4 @@
+use bevy::text::ComputedTextBlock;
 use strum::IntoEnumIterator;
 
 use crate::prelude::*;
@@ -6,13 +7,13 @@ fn on_call_console_command(
     trigger: On<CallCommandEvent>,
     cmds: Res<ConsoleCommands>,
     mut commands: Commands,
-    console: Query<&Console>,
+    prompt: Query<&ConsolePrompt>,
 ) {
     let split = trigger.command_name.split(" ").collect::<Vec<_>>();
     let name = r!(split.first());
-    let console = console.get(trigger.console_id).unwrap();
+    let prompt = prompt.get(trigger.console_id).unwrap();
     commands.trigger(ConsolePrintln {
-        message: format!("{}{}", console.prompt, trigger.command_name),
+        message: format!("{}{}", **prompt, trigger.command_name),
         console_id: trigger.console_id,
     });
     if let Some(cmd) = cmds.get(*name) {
@@ -29,16 +30,23 @@ fn on_call_console_command(
 
 fn builtins(
     input: In<(ConsoleBuiltin, Entity)>,
-    mut console_q: Query<(Entity, &mut Console, &ConsoleBufferView)>,
+    mut console_q: Query<(
+        Entity,
+        &mut ConsoleBuffer,
+        &ConsoleBufferView,
+        &ConsolePrompt,
+        &ComputedTextBlock,
+    )>,
     mut commands: Commands,
 ) {
     match input.0.0 {
         ConsoleBuiltin::Clear => {
-            let (entity, mut console, view) = console_q.get_mut(input.0.1).unwrap();
-            console.buffer.clear();
+            let (entity, mut buffer, view, prompt, block) = console_q.get_mut(input.0.1).unwrap();
+            buffer.clear();
+            // TODO: This should be a console action.
             commands
                 .entity(entity)
-                .insert(view.jump_to_bottom(&console));
+                .insert(view.jump_to_bottom(prompt, block));
         }
     }
 }
