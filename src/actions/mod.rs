@@ -4,7 +4,6 @@ use crate::prelude::*;
 pub mod actions;
 mod app_ext;
 mod console_action;
-mod systems;
 pub mod prelude {
     pub use super::app_ext::*;
     pub use super::console_action::*;

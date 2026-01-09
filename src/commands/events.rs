@@ -7,19 +7,16 @@ fn on_call_console_command(
     trigger: On<CallCommandEvent>,
     cmds: Res<ConsoleCommands>,
     mut commands: Commands,
-    prompt: Query<&ConsolePrompt>,
+    mut console_q: Query<(&ConsolePrompt, &mut ConsoleWriteQueue)>,
 ) {
     let split = trigger.command_name.split(" ").collect::<Vec<_>>();
     let name = r!(split.first());
-    let prompt = prompt.get(trigger.console_id).unwrap();
-    commands.trigger(ConsolePrintln {
-        message: format!("{}{}", **prompt, trigger.command_name),
-        console_id: trigger.console_id,
-    });
+    let (prompt, mut queue) = console_q.get_mut(trigger.console_id).unwrap();
+    queue.push(format!("{}{}", **prompt, trigger.command_name));
     if let Some(cmd) = cmds.get(*name) {
         commands.run_system_with(cmd.dispatch, trigger.event().clone());
-    } else if let Some(cmd) = ConsoleBuiltin::iter().find(|b| b.to_string() == *name) {
-        commands.run_system_cached_with(builtins, (cmd, trigger.console_id));
+    } else if let Some(cmd) = ConsoleShellCommands::iter().find(|b| b.to_string() == *name) {
+        commands.run_system_cached_with(shell_commands, (cmd, trigger.console_id));
     } else {
         commands.trigger(ConsolePrintln {
             message: format!("Unknown command '{name}'"),
@@ -28,8 +25,8 @@ fn on_call_console_command(
     }
 }
 
-fn builtins(
-    input: In<(ConsoleBuiltin, Entity)>,
+fn shell_commands(
+    input: In<(ConsoleShellCommands, Entity)>,
     mut console_q: Query<(
         Entity,
         &mut ConsoleBuffer,
@@ -40,7 +37,7 @@ fn builtins(
     mut commands: Commands,
 ) {
     match input.0.0 {
-        ConsoleBuiltin::Clear => {
+        ConsoleShellCommands::Clear => {
             let (entity, mut buffer, view, prompt, block) = console_q.get_mut(input.0.1).unwrap();
             buffer.clear();
             // TODO: This should be a console action.

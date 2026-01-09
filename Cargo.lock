@@ -680,6 +680,7 @@ dependencies = [
  "shlex",
  "smol_str",
  "strum",
+ "thiserror 2.0.17",
  "tiny_bail",
  "variadics_please",
 ]

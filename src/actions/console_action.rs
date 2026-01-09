@@ -100,22 +100,22 @@ impl ConsoleActionKeybind {
     }
 
     fn matches(
-        vec: &Vec<Vec<ConsoleInput>>,
+        vec: &[Vec<ConsoleInput>],
         input_events: &[&KeyboardInput],
         mouse_events: &[&MouseButtonInput],
         key_input: &ButtonInput<Key>,
         mouse_input: &ButtonInput<MouseButton>,
         scroll: Option<&AccumulatedMouseScroll>,
     ) -> Option<Vec<MatchedInput>> {
-        vec.into_iter().try_fold(vec![], |mut res, or_group| {
-            let matched = or_group.into_iter().find_map(|key| match key {
+        vec.iter().try_fold(vec![], |mut res, or_group| {
+            let matched = or_group.iter().find_map(|key| match key {
                 ConsoleInput::AnyCharacter => input_events.iter().find_map(|k| {
                     if let Key::Character(_) = k.logical_key
                         && key_input.just_pressed(k.logical_key.clone())
                     {
-                        return Some((**k).clone().into());
+                        Some((**k).clone().into())
                     } else {
-                        return None;
+                        None
                     }
                 }),
                 ConsoleInput::AnyKey => input_events.first().map(|k| (**k).clone().into()),
@@ -129,30 +129,30 @@ impl ConsoleActionKeybind {
                     .flatten(),
                 ConsoleInput::Mouse(button) => mouse_events.iter().find_map(|m| {
                     if m.button == *button && mouse_input.just_pressed(m.button) {
-                        return Some((*m).clone().into());
+                        Some((**m).into())
                     } else {
-                        return None;
+                        None
                     }
                 }),
-                ConsoleInput::Scroll => scroll.map(|s| (*s).clone().into()),
+                ConsoleInput::Scroll => scroll.map(|s| (*s).into()),
             });
 
             if let Some(key) = matched {
                 res.push(key);
-                return Some(res);
+                Some(res)
             } else {
-                return None;
+                None
             }
         })
     }
-    fn mod_matches(vec: &Vec<Vec<KeyCode>>, keys: &ButtonInput<KeyCode>) -> Option<Vec<KeyCode>> {
-        vec.into_iter().try_fold(vec![], |mut res, or_group| {
-            let matched = or_group.into_iter().find(|key| keys.pressed(**key));
+    fn mod_matches(vec: &[Vec<KeyCode>], keys: &ButtonInput<KeyCode>) -> Option<Vec<KeyCode>> {
+        vec.iter().try_fold(vec![], |mut res, or_group| {
+            let matched = or_group.iter().find(|key| keys.pressed(**key));
             if let Some(key) = matched {
-                res.push(key.clone());
-                return Some(res);
+                res.push(*key);
+                Some(res)
             } else {
-                return None;
+                None
             }
         })
     }

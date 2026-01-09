@@ -1,6 +1,6 @@
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
-use bevy_command_prompt::{ConsolePlugin, prelude::*};
+use bevy_command_prompt::prelude::*;
 use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 pub fn main() {
@@ -21,7 +21,8 @@ pub fn main() {
                     ..Default::default()
                 },
                 children![
-                    Console::default().with_prompt("<=================>\n=>".into()),
+                    Console::default(),
+                    ConsolePrompt("<=================>\n=>".into()),
                     ConsoleUiSettings {
                         font: TextFont {
                             font,

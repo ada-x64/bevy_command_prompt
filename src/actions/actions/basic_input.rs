@@ -1,7 +1,4 @@
-use bevy::{
-    input::{keyboard::Key, mouse::MouseScrollUnit},
-    platform::collections::HashMap,
-};
+use bevy::{input::keyboard::Key, text::ComputedTextBlock};
 
 use crate::prelude::*;
 
@@ -72,7 +69,6 @@ pub fn submit(
 fn on_scroll(
     input: In<ConsoleActionSystemInput>,
     mut commands: Commands,
-    settings_q: Query<&ConsoleUiSettings>,
     console_q: Query<(&ConsoleBuffer, &ConsolePrompt, &ConsoleBufferView)>,
 ) {
     let scroll = input.matched_scroll();
@@ -81,10 +77,9 @@ fn on_scroll(
         return;
     }
     let scroll = scroll.unwrap();
-    let settings = settings_q.get(input.console_id).unwrap();
     let (buffer, prompt, view) = console_q.get(input.console_id).unwrap();
     let range = view.range;
-    let buffer_size = buffer.lines().count();
+    let buffer_size = buffer.line_count();
     let prompt_size = prompt.lines().count();
     if buffer_size <= range {
         return;
@@ -97,7 +92,17 @@ fn on_scroll(
     commands.entity(input.console_id).insert(new_view);
 }
 
-pub fn plugin(app: &mut App) {
+pub fn jump_to_bottom(
+    input: In<ConsoleActionSystemInput>,
+    mut console_q: Query<(&ComputedTextBlock, &ConsolePrompt, &mut ConsoleBufferView)>,
+    mut commands: Commands,
+) {
+    let (block, prompt, view) = console_q.get_mut(input.console_id).unwrap();
+    let new_view = view.jump_to_bottom(prompt, block);
+    commands.entity(input.console_id).insert(new_view);
+}
+
+pub(crate) fn plugin(app: &mut App) {
     app.register_console_action(
         ConsoleActionKeybind::new(Key::Backspace)
             .without_modifiers([KeyCode::ControlLeft, KeyCode::ControlRight]),
@@ -118,4 +123,8 @@ pub fn plugin(app: &mut App) {
         submit,
     );
     app.register_console_action(ConsoleActionKeybind::new(ConsoleInput::Scroll), on_scroll);
+    app.register_console_action(
+        ConsoleActionKeybind::new(ConsoleInput::AnyKey),
+        jump_to_bottom,
+    );
 }

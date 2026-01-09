@@ -12,7 +12,7 @@ pub struct CallCommandEvent {
 pub struct ConsoleCommands(HashMap<String, ConcreteConsoleCommand>);
 
 #[derive(Debug, Clone, strum::EnumIter, strum::Display)]
-pub enum ConsoleBuiltin {
+pub enum ConsoleShellCommands {
     #[strum(serialize = "clear")]
     Clear,
 }

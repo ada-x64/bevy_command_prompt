@@ -9,7 +9,7 @@ use bevy::{
 // TODO: Virtual scrolling requires custom scroll bar.
 #[derive(Component, Debug, Clone, Reflect, Copy)]
 #[require(Node, Text)]
-#[component(on_insert=Self::on_insert)]
+// #[component(on_insert=Self::on_insert)]
 pub struct ConsoleBufferView {
     pub console_id: Entity,
     pub start: usize,
@@ -25,24 +25,24 @@ impl ConsoleBufferView {
         }
     }
     // TODO: These next two functions need to be rewritten or removed in order to facilitate the new pipeline.
-    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
-        let text = {
-            let view = world.get::<ConsoleBufferView>(ctx.entity).unwrap();
-            let console = world.get::<Console>(ctx.entity).unwrap();
-            view.text(console)
-        };
-        world.commands().entity(ctx.entity).insert(text);
-    }
-    fn text(&self, console: &Console) -> impl Bundle {
-        let view = console
-            .buffer
-            .lines()
-            .skip(self.start)
-            .take(self.range)
-            .collect::<Vec<&str>>()
-            .join("\n");
-        Text(format!("{view}\n{}{}", console.prompt, console.input))
-    }
+    // fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+    //     let text = {
+    //         let view = world.get::<ConsoleBufferView>(ctx.entity).unwrap();
+    //         let console = world.get::<Console>(ctx.entity).unwrap();
+    //         view.text(console)
+    //     };
+    //     world.commands().entity(ctx.entity).insert(text);
+    // }
+    // fn text(&self, console: &Console) -> impl Bundle {
+    //     let view = console
+    //         .buffer
+    //         .lines()
+    //         .skip(self.start)
+    //         .take(self.range)
+    //         .collect::<Vec<&str>>()
+    //         .join("\n");
+    //     Text(format!("{view}\n{}{}", console.prompt, console.input))
+    // }
     fn resize(
         self,
         container_height: f32,
@@ -89,7 +89,7 @@ impl ConsoleBufferView {
     }
 }
 
-#[derive(Component, Debug, Reflect, Clone)]
+#[derive(Component, Debug, Reflect, Clone, Default)]
 #[require(
     Node,
     ConsoleUiSettings,
@@ -100,19 +100,8 @@ impl ConsoleBufferView {
 )]
 #[component(on_add=Self::on_add)]
 pub struct Console {
-    /// raw output buffer
-    /// to get the actual formatted buffer string (e.g. for buffer view)
-    /// get the [bevy::text::ComputedTextBlock::buffer] for this entity.
     pub(crate) input: String,
     pub(crate) cursor: usize,
-}
-impl Default for Console {
-    fn default() -> Self {
-        Self {
-            input: Default::default(),
-            cursor: 0,
-        }
-    }
 }
 impl Console {
     pub(crate) fn on_add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
