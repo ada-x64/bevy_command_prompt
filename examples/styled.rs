@@ -1,13 +1,10 @@
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy_command_prompt::prelude::*;
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 pub fn main() {
     let mut app = App::new();
     app.add_plugins(DefaultPlugins);
-    app.add_plugins(EguiPlugin::default());
-    app.add_plugins(WorldInspectorPlugin::default());
     app.add_plugins(ConsolePlugin);
     app.add_systems(
         Startup,
@@ -24,14 +21,13 @@ pub fn main() {
                     Console::default(),
                     ConsolePrompt("<=================>\n=>".into()),
                     ConsoleUiSettings {
-                        font: TextFont {
+                        text_font: TextFont {
                             font,
                             font_size: 12.,
                             ..Default::default()
                         },
                         font_color: tailwind::AMBER_700.into(),
                         background_color: tailwind::SLATE_200.into(),
-                        text_layout: TextLayout::default(),
                     }
                 ],
             ));

@@ -145,21 +145,19 @@ pub struct ConsoleHistory(Vec<String>);
 #[component(immutable, on_insert=Self::on_insert)]
 #[require(Node)]
 pub struct ConsoleUiSettings {
-    pub font: TextFont,
+    pub text_font: TextFont,
     pub font_color: Color,
     pub background_color: Color,
-    pub text_layout: TextLayout,
 }
 impl Default for ConsoleUiSettings {
     fn default() -> Self {
         Self {
-            font: TextFont {
+            text_font: TextFont {
                 font_size: 12.,
                 ..Default::default()
             },
             font_color: WHITE.into(),
             background_color: BLACK.into(),
-            text_layout: TextLayout::default(),
         }
     }
 }
@@ -169,17 +167,10 @@ impl ConsoleUiSettings {
             let this = world.get::<Self>(ctx.entity).unwrap();
             (
                 BackgroundColor(this.background_color),
-                this.font.clone(),
+                this.text_font.clone(),
                 TextColor(this.font_color),
-                this.text_layout,
             )
         };
         world.commands().entity(ctx.entity).insert(bundle);
-    }
-    pub fn line_height(&self) -> f32 {
-        match self.font.line_height {
-            bevy::text::LineHeight::Px(px) => px,
-            bevy::text::LineHeight::RelativeToFont(scale) => self.font.font_size * scale,
-        }
     }
 }

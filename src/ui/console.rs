@@ -1,8 +1,8 @@
-use crate::prelude::*;
+use crate::{prelude::*, ui::calc_line_height};
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     input_focus::InputFocus,
-    text::ComputedTextBlock,
+    text::{ComputedTextBlock, LineHeight},
     ui::ui_layout_system,
 };
 
@@ -72,15 +72,16 @@ impl ConsoleBufferView {
                 &ConsolePrompt,
                 &ComputedTextBlock,
                 &ConsoleBufferView,
+                &LineHeight,
             ),
             Or<(Changed<ComputedNode>, Added<ConsoleBufferView>)>,
         >,
         mut commands: Commands,
     ) {
-        for (entity, node, settings, prompt, block, view) in q {
+        for (entity, node, settings, prompt, block, view, line_height) in q {
             let new_view = view.resize(
                 node.size().y,
-                settings.line_height(),
+                calc_line_height(line_height, settings.text_font.font_size),
                 block.buffer().layout_runs().count(),
                 prompt.lines().count(),
             );
@@ -93,7 +94,9 @@ impl ConsoleBufferView {
 #[require(
     Node,
     ConsoleUiSettings,
+    ConsoleTextLayout,
     ConsoleBuffer,
+    ConsoleBufferFlags,
     ConsoleWriteQueue,
     ConsolePrompt,
     ConsoleHistory
