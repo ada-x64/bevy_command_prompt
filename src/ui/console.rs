@@ -8,8 +8,17 @@ use bevy::{
 
 // TODO: Virtual scrolling requires custom scroll bar.
 #[derive(Component, Debug, Clone, Reflect, Copy)]
-#[require(Node, Text)]
-// #[component(on_insert=Self::on_insert)]
+#[require(
+    Node,
+    ConsoleBuffer,
+    Console,
+    ConsolePrompt,
+    ComputedConsoleBufferLayout,
+    TextColor,
+    LineHeight,
+    // copying `Text`s homework
+    FontHinting::Disabled
+)]
 pub struct ConsoleBufferView {
     pub console_id: Entity,
     pub start: usize,
@@ -24,25 +33,6 @@ impl ConsoleBufferView {
             range: 0,
         }
     }
-    // TODO: These next two functions need to be rewritten or removed in order to facilitate the new pipeline.
-    // fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
-    //     let text = {
-    //         let view = world.get::<ConsoleBufferView>(ctx.entity).unwrap();
-    //         let console = world.get::<Console>(ctx.entity).unwrap();
-    //         view.text(console)
-    //     };
-    //     world.commands().entity(ctx.entity).insert(text);
-    // }
-    // fn text(&self, console: &Console) -> impl Bundle {
-    //     let view = console
-    //         .buffer
-    //         .lines()
-    //         .skip(self.start)
-    //         .take(self.range)
-    //         .collect::<Vec<&str>>()
-    //         .join("\n");
-    //     Text(format!("{view}\n{}{}", console.prompt, console.input))
-    // }
     fn resize(
         self,
         container_height: f32,
@@ -63,6 +53,7 @@ impl ConsoleBufferView {
         let start = count.saturating_sub(self.range).saturating_add(prompt_size);
         Self { start, ..self }
     }
+    // TODO: See `detect_text_needs_rerender`
     pub(crate) fn on_resize(
         q: Query<
             (
@@ -70,7 +61,8 @@ impl ConsoleBufferView {
                 &ComputedNode,
                 &ConsoleUiSettings,
                 &ConsolePrompt,
-                &ComputedTextBlock,
+                &mut ComputedConsoleBufferLayout,
+                &mut ConsoleBufferFlags,
                 &ConsoleBufferView,
                 &LineHeight,
             ),
@@ -78,14 +70,16 @@ impl ConsoleBufferView {
         >,
         mut commands: Commands,
     ) {
-        for (entity, node, settings, prompt, block, view, line_height) in q {
+        for (entity, node, settings, prompt, mut block, mut flags, view, line_height) in q {
             let new_view = view.resize(
                 node.size().y,
                 calc_line_height(line_height, settings.text_font.font_size),
-                block.buffer().layout_runs().count(),
+                block.buffer.layout_runs().count(),
                 prompt.lines().count(),
             );
             commands.entity(entity).insert(new_view);
+            block.needs_rerender = true;
+            flags.needs_measure_fn = true;
         }
     }
 }
@@ -93,11 +87,13 @@ impl ConsoleBufferView {
 #[derive(Component, Debug, Reflect, Clone, Default)]
 #[require(
     Node,
+    bevy::ui::ContentSize,
     ConsoleUiSettings,
     ConsoleTextLayout,
     ConsoleBuffer,
     ConsoleBufferFlags,
     ConsoleWriteQueue,
+    ConsoleActionQueue,
     ConsolePrompt,
     ConsoleHistory
 )]

@@ -1,21 +1,30 @@
 use std::sync::Arc;
 
 use bevy::{
+    math::Affine2,
     platform::collections::HashMap,
+    render::{Extract, sync_world::TemporaryRenderEntity},
     text::{
         CosmicBuffer, CosmicFontSystem, FontAtlasKey, FontAtlasSet, FontFaceInfo, FontSmoothing,
-        LineHeight, PositionedGlyph, RunGeometry, SwashCache, TextBounds, TextLayoutInfo,
-        TextMeasureInfo, add_glyph_to_atlas, get_glyph_atlas_info, load_font_to_fontdb,
+        LineHeight, PositionedGlyph, RunGeometry, SwashCache, TextBounds, TextEntity,
+        TextLayoutInfo, TextMeasureInfo, add_glyph_to_atlas, get_glyph_atlas_info,
+        load_font_to_fontdb,
+    },
+    ui::{ContentSize, FixedMeasure, NodeMeasure},
+    ui_render::{
+        ExtractedGlyph, ExtractedUiItem, ExtractedUiNode, ExtractedUiNodes, UiCameraMap,
+        stack_z_offsets,
     },
 };
 use cosmic_text::{Attrs, Family, Metrics, Shaping, Wrap};
+use smallvec::SmallVec;
 
 use crate::{prelude::*, ui::calc_line_height};
 
 #[derive(Component, Default, Reflect, Debug)]
 pub struct ConsoleBufferFlags {
-    needs_recompute: bool,
-    needs_measure_fn: bool,
+    pub(crate) needs_recompute: bool,
+    pub(crate) needs_measure_fn: bool,
 }
 
 #[derive(Component, Default, Reflect, Debug)]
@@ -24,10 +33,21 @@ pub struct ConsoleTextLayout {
     pub linebreak: LineBreak,
 }
 
+/// Ideally, this would just be a [bevy::text::ComputedTextBlock], but it's fields are currently private.
 #[derive(Component, Debug, Clone)]
 pub struct ComputedConsoleBufferLayout {
-    buffer: CosmicBuffer,
-    needs_rerender: bool,
+    pub(crate) buffer: CosmicBuffer,
+    pub(crate) needs_rerender: bool,
+    pub(crate) entities: SmallVec<[TextEntity; 1]>,
+}
+impl Default for ComputedConsoleBufferLayout {
+    fn default() -> Self {
+        Self {
+            buffer: Default::default(),
+            needs_rerender: true,
+            entities: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -77,7 +97,6 @@ impl ConsoleTextPipeline {
         &mut self,
         fonts: &Assets<Font>,
         linebreak: LineBreak,
-        justify: Justify,
         bounds: TextBounds,
         scale_factor: f64,
         computed: &mut ComputedConsoleBufferLayout,
@@ -86,6 +105,8 @@ impl ConsoleTextPipeline {
         line_height: &LineHeight,
         view: &ConsoleBufferView,
         buffer: &ConsoleBuffer,
+        prompt: &ConsolePrompt,
+        console: &Console,
     ) -> Result<(), TextError> {
         computed.needs_rerender = false;
 
@@ -132,9 +153,10 @@ impl ConsoleTextPipeline {
         );
 
         // Parsing happens here.
-        // Further split these into stylized spans.
+        // TODO: Further split these into stylized spans.
+        // ANSI text should be escaped into subspans with colors &c
         let mut count = 0;
-        let lines: Vec<String> = buffer
+        let mut lines: Vec<String> = buffer
             .as_lines()
             .iter()
             .skip(view.start)
@@ -143,18 +165,21 @@ impl ConsoleTextPipeline {
                 (count < view.range).then_some(vec.iter().cloned().collect())
             })
             .collect();
+        lines.push(format!("{}{}", prompt.0, console.input));
 
         cosmic_buffer.set_rich_text(
             font_system,
             lines.iter().map(|s| (s.as_str(), attrs.clone())),
             &Attrs::new(),
             Shaping::Advanced,
-            Some(justify.into()),
+            None,
         );
 
         // Workaround for alignment not working for unbounded text.
         // See https://github.com/pop-os/cosmic-text/issues/343
-        let width = (bounds.width.is_none() && justify != Justify::Left)
+        let width = bounds
+            .width
+            .is_none()
             .then(|| buffer_dimensions(cosmic_buffer).x)
             .or(bounds.width);
         cosmic_buffer.set_size(font_system, width, bounds.height);
@@ -171,13 +196,15 @@ impl ConsoleTextPipeline {
         entity: Entity,
         fonts: &Assets<Font>,
         scale_factor: f64,
-        layout: &TextLayout,
+        layout: &ConsoleTextLayout,
         computed: &mut ComputedConsoleBufferLayout,
         font_system: &mut CosmicFontSystem,
         settings: &ConsoleUiSettings,
         line_height: &LineHeight,
         buffer: &ConsoleBuffer,
         view: &ConsoleBufferView,
+        prompt: &ConsolePrompt,
+        console: &Console,
     ) -> Result<TextMeasureInfo, TextError> {
         const MIN_WIDTH_CONTENT_BOUNDS: TextBounds = TextBounds::new_horizontal(0.0);
 
@@ -188,7 +215,6 @@ impl ConsoleTextPipeline {
         self.update_buffer(
             fonts,
             layout.linebreak,
-            layout.justify,
             MIN_WIDTH_CONTENT_BOUNDS,
             scale_factor,
             computed,
@@ -197,6 +223,8 @@ impl ConsoleTextPipeline {
             line_height,
             view,
             buffer,
+            prompt,
+            console,
         )?;
 
         let buffer = &mut computed.buffer;
@@ -438,6 +466,106 @@ fn get_attrs<'a>(
         .color(cosmic_text::Color(color.to_linear().as_u32()))
 }
 
+/// Generates a new [`Measure`] for a text node on changes to its [`Text`] component.
+///
+/// A `Measure` is used by the UI's layout algorithm to determine the appropriate amount of space
+/// to provide for the text given the fonts, the text itself and the constraints of the layout.
+///
+/// * Measures are regenerated on changes to either [`ComputedTextBlock`] or [`ComputedUiRenderTargetInfo`].
+/// * Changes that only modify the colors of a `Text` do not require a new `Measure`. This system
+///   is only able to detect that a `Text` component has changed and will regenerate the `Measure` on
+///   color changes. This can be expensive, particularly for large blocks of text, and the [`bypass_change_detection`](bevy_ecs::change_detection::DetectChangesMut::bypass_change_detection)
+///   method should be called when only changing the `Text`'s colors.
+pub fn measure_console_text_system(
+    fonts: Res<Assets<Font>>,
+    mut text_query: Query<
+        (
+            Entity,
+            Ref<ConsoleTextLayout>,
+            &mut ContentSize,
+            &mut ConsoleBufferFlags,
+            &mut ComputedConsoleBufferLayout,
+            Ref<ComputedUiRenderTargetInfo>,
+            &ComputedNode,
+            Ref<FontHinting>,
+            &ConsoleUiSettings,
+            &LineHeight,
+            &ConsoleBuffer,
+            &ConsoleBufferView,
+            &ConsolePrompt,
+            &Console,
+        ),
+        With<Node>,
+    >,
+    mut text_pipeline: ResMut<ConsoleTextPipeline>,
+    mut font_system: ResMut<CosmicFontSystem>,
+) {
+    for (
+        entity,
+        layout,
+        mut content_size,
+        mut text_flags,
+        mut computed,
+        computed_target,
+        computed_node,
+        hinting,
+        settings,
+        line_height,
+        buffer,
+        view,
+        prompt,
+        console,
+    ) in &mut text_query
+    {
+        // Note: the ComputedTextBlock::needs_rerender bool is cleared in create_text_measure().
+        // 1e-5 epsilon to ignore tiny scale factor float errors
+        if !(1e-5
+            < (computed_target.scale_factor() - computed_node.inverse_scale_factor.recip()).abs()
+            || computed.needs_rerender
+            || text_flags.needs_measure_fn
+            || content_size.is_added()
+            || hinting.is_changed())
+        {
+            continue;
+        }
+
+        match text_pipeline.create_text_measure(
+            entity,
+            fonts.as_ref(),
+            computed_target.scale_factor().into(),
+            &layout,
+            computed.as_mut(),
+            &mut font_system,
+            settings,
+            line_height,
+            buffer,
+            view,
+            prompt,
+            console,
+        ) {
+            Ok(measure) => {
+                content_size.set(NodeMeasure::Fixed(FixedMeasure { size: measure.max }));
+
+                // Text measure func created successfully, so set `TextNodeFlags` to schedule a recompute
+                text_flags.needs_measure_fn = false;
+                text_flags.needs_recompute = true;
+            }
+            Err(TextError::NoSuchFont) => {
+                // Try again next frame
+                text_flags.needs_measure_fn = true;
+            }
+            Err(
+                e @ (TextError::FailedToAddGlyph(_)
+                | TextError::FailedToGetGlyphImage(_)
+                | TextError::MissingAtlasLayout
+                | TextError::MissingAtlasTexture
+                | TextError::InconsistentAtlasState),
+            ) => {
+                panic!("Fatal error when processing text: {e}.");
+            }
+        };
+    }
+}
 pub fn update_console_text_layout(
     mut pipeline: ResMut<ConsoleTextPipeline>,
     console_q: Query<(
@@ -514,4 +642,112 @@ pub fn compute_console_text_size(
         .buffer
         .set_size(&mut font_system.0, bounds.width, bounds.height);
     buffer_dimensions(&computed.buffer)
+}
+
+// If we can use a ComputedTextBlock above, then we won't need this function.
+/// Extracts the console glyphs for rendering
+pub fn extract_console_text_sections(
+    mut commands: Commands,
+    mut extracted_uinodes: ResMut<ExtractedUiNodes>,
+    texture_atlases: Extract<Res<Assets<TextureAtlasLayout>>>,
+    uinode_query: Extract<
+        Query<(
+            Entity,
+            &ComputedNode,
+            &UiGlobalTransform,
+            &InheritedVisibility,
+            Option<&CalculatedClip>,
+            &ComputedUiTargetCamera,
+            &ComputedConsoleBufferLayout,
+            &TextColor,
+            &TextLayoutInfo,
+        )>,
+    >,
+    text_styles: Extract<Query<&TextColor>>,
+    camera_map: Extract<UiCameraMap>,
+) {
+    let mut start = extracted_uinodes.glyphs.len();
+    let mut end = start + 1;
+
+    let mut camera_mapper = camera_map.get_mapper();
+    for (
+        entity,
+        uinode,
+        transform,
+        inherited_visibility,
+        clip,
+        camera,
+        computed_block,
+        text_color,
+        text_layout_info,
+    ) in &uinode_query
+    {
+        // Skip if not visible or if size is set to zero (e.g. when a parent is set to `Display::None`)
+        if !inherited_visibility.get() || uinode.is_empty() {
+            continue;
+        }
+
+        let Some(extracted_camera_entity) = camera_mapper.map(camera) else {
+            continue;
+        };
+
+        let transform = Affine2::from(*transform) * Affine2::from_translation(-0.5 * uinode.size());
+
+        let mut color = text_color.0.to_linear();
+
+        let mut current_span_index = 0;
+
+        for (
+            i,
+            PositionedGlyph {
+                position,
+                atlas_info,
+                span_index,
+                ..
+            },
+        ) in text_layout_info.glyphs.iter().enumerate()
+        {
+            if current_span_index != *span_index
+                && let Some(span_entity) =
+                    computed_block.entities.get(*span_index).map(|t| t.entity)
+            {
+                color = text_styles
+                    .get(span_entity)
+                    .map(|text_color| LinearRgba::from(text_color.0))
+                    .unwrap_or_default();
+                current_span_index = *span_index;
+            }
+
+            let rect = texture_atlases
+                .get(atlas_info.texture_atlas)
+                .unwrap()
+                .textures[atlas_info.location.glyph_index]
+                .as_rect();
+            extracted_uinodes.glyphs.push(ExtractedGlyph {
+                color,
+                translation: *position,
+                rect,
+            });
+
+            if text_layout_info
+                .glyphs
+                .get(i + 1)
+                .is_none_or(|info| info.atlas_info.texture != atlas_info.texture)
+            {
+                extracted_uinodes.uinodes.push(ExtractedUiNode {
+                    z_order: uinode.stack_index as f32 + stack_z_offsets::TEXT,
+                    render_entity: commands.spawn(TemporaryRenderEntity).id(),
+                    image: atlas_info.texture,
+                    clip: clip.map(|clip| clip.clip),
+                    extracted_camera_entity,
+                    item: ExtractedUiItem::Glyphs { range: start..end },
+                    main_entity: entity.into(),
+                    transform,
+                });
+                start = end;
+            }
+
+            end += 1;
+        }
+    }
 }

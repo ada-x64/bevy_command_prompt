@@ -5,7 +5,10 @@ use bevy::{
         mouse::{AccumulatedMouseScroll, MouseButtonInput},
     },
     input_focus::InputFocus,
+    render::RenderApp,
+    text::detect_text_needs_rerender,
     ui::ui_layout_system,
+    ui_render::RenderUiSystems,
 };
 
 pub fn handle_input(
@@ -17,12 +20,13 @@ pub fn handle_input(
     mut mouse_events: MessageReader<MouseButtonInput>,
     actions: Res<ConsoleActionCache>,
     focus: Res<InputFocus>,
-    mut q_console: Query<&mut ConsoleActionQueue>,
+    mut q_console: Query<(&mut ConsoleActionQueue, &mut ComputedConsoleBufferLayout)>,
 ) {
     if !keyboard_events.is_empty()
         && let Some(console_id) = focus.0
-        && let Ok(mut action_queue) = q_console.get_mut(console_id)
+        && let Ok((mut action_queue, mut layout)) = q_console.get_mut(console_id)
     {
+        layout.needs_rerender = true;
         // want to collect here so we can iterate multiple times.
         let keyboard_events = keyboard_events.read().collect::<Vec<_>>();
         let mouse_events = mouse_events.read().collect::<Vec<_>>();
@@ -75,12 +79,34 @@ impl Plugin for ConsolePlugin {
         app.add_systems(
             PostUpdate,
             (
-                handle_input.run_if(resource_exists::<InputFocus>),
-                clear_action_queue,
-                clear_write_queue,
-            )
-                .chain()
-                .before(ui_layout_system),
+                (
+                    handle_input.run_if(resource_exists::<InputFocus>),
+                    clear_action_queue,
+                    clear_write_queue,
+                )
+                    .chain()
+                    .before(ui_layout_system),
+                (
+                    // todo: detect if console text needs rerender
+                    measure_console_text_system,
+                    update_console_text_layout,
+                )
+                    .after(bevy::text::free_unused_font_atlases_system)
+                    .before(bevy::asset::AssetEventSystems)
+                    // these are separate entities.
+                    .ambiguous_with(detect_text_needs_rerender::<Text2d>)
+                    .ambiguous_with(detect_text_needs_rerender::<Text>)
+                    .ambiguous_with(bevy::sprite::update_text2d_layout)
+                    .ambiguous_with(bevy::sprite::calculate_bounds_text2d),
+            ),
+        );
+
+        let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
+            return;
+        };
+        render_app.add_systems(
+            ExtractSchedule,
+            extract_console_text_sections.in_set(RenderUiSystems::ExtractText),
         );
     }
 }

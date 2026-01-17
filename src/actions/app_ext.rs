@@ -18,6 +18,7 @@ pub type ConsoleActionSystem = SystemId<In<ConsoleActionSystemInput>>;
 #[derive(Resource, Debug, Deref, DerefMut, Default)]
 pub struct ConsoleActionCache(HashMap<ConsoleActionKeybind, ConsoleActionSystem>);
 
+#[derive(Debug)]
 pub struct ConsoleActionSystemInput {
     pub console_id: Entity,
     pub matched_input: Vec<MatchedInput>,
