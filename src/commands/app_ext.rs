@@ -22,23 +22,22 @@ impl CommandExt for App {
 }
 
 fn dispatch_cmd<T: ConsoleCommand>(
-    input: In<CallCommandEvent>,
+    input: In<SubmitEvent>,
     mut writer: MessageWriter<CommandMsg<T>>,
     mut commands: Commands,
 ) {
     let res: Result<(), String> = (|| {
-        let split = shlex::split(&input.command_name).ok_or("Invalid quoting".to_string())?;
-        let res = T::try_parse_from(split.iter()).map_err(|e| format!("{e}"))?;
+        let res = T::try_parse_from(input.args().iter()).map_err(|e| format!("{e}"))?;
         writer.write(CommandMsg {
             command: res,
-            console_id: input.console_id,
+            console_id: input.console_id(),
         });
         Ok(())
     })();
     if let Err(e) = res {
         commands.trigger(ConsolePrintln {
             message: e,
-            console_id: input.console_id,
+            console_id: input.console_id(),
         })
     }
 }

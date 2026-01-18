@@ -41,6 +41,7 @@ impl std::fmt::Debug for ConsoleBuffer {
             .field("capacity", &self.0.capacity())
             .field("vacant_len", &self.0.vacant_len())
             .field("occupied_len", &self.0.occupied_len())
+            .field("line_count", &self.line_count())
             .finish()
     }
 }
@@ -77,20 +78,16 @@ impl ConsoleBuffer {
     pub fn line_count(&self) -> usize {
         self.0.iter().filter(|c| **c == '\n').count()
     }
-    /// Collects the ring buffer into a vector of characters. This function does
-    /// not allocate, so it does not return Strings.
+    /// Collects the ring buffer into a vec of vecs of chars. This function does
+    /// not allocate, so it does not return Strings. Note that the '\n' characters are _not_ attached.
     pub fn as_lines(&self) -> Vec<Vec<&char>> {
-        self.0.iter().fold(vec![vec![]], |mut acc, c| {
-            let mut last = acc.last_mut().unwrap();
-            if let Some(l) = last.last()
-                && **l == '\n'
-            {
-                acc.push(vec![]);
-                last = acc.last_mut().unwrap();
-            }
-            last.push(c);
-            acc
-        })
+        let mut outer = vec![];
+        let mut iter = self.0.iter().peekable();
+        let iter = iter.by_ref();
+        while iter.peek().is_some() {
+            outer.push(iter.take_while(|c| **c != '\n').collect());
+        }
+        outer
     }
     /// Removes all items from the buffer. Returns the number of dropped items.
     pub fn clear(&mut self) -> usize {

@@ -11,15 +11,15 @@ pub fn main() {
         }),
         ..Default::default()
     }));
-    app.add_plugins(EguiPlugin::default());
-    app.add_plugins(WorldInspectorPlugin::default());
+    // app.add_plugins(EguiPlugin::default());
+    // app.add_plugins(WorldInspectorPlugin::default());
     app.add_plugins(ConsolePlugin);
     app.add_systems(Startup, |mut commands: Commands| {
         commands.spawn(Camera2d);
         commands.spawn((
             Node {
-                width: Val::Vw(80.),
-                height: Val::Vh(80.),
+                width: Val::Vw(100.),
+                height: Val::Vh(100.),
                 ..Default::default()
             },
             children![Console::default()],

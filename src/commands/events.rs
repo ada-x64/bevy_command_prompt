@@ -2,17 +2,22 @@ use strum::IntoEnumIterator;
 
 use crate::prelude::*;
 
-fn on_call_console_command(
-    trigger: On<CallCommandEvent>,
+fn on_submit(
+    trigger: On<SubmitEvent>,
     cmds: Res<ConsoleCommands>,
     mut commands: Commands,
-    mut console_q: Query<(&ConsolePrompt, &mut ConsoleWriteQueue)>,
+    console_q: Query<&ConsolePrompt>,
 ) {
-    let split = trigger.command_name.split(" ").collect::<Vec<_>>();
-    let name = r!(split.first());
-    let (prompt, mut queue) = console_q.get_mut(trigger.console_id).unwrap();
-    queue.push(format!("{}{}", **prompt, trigger.command_name));
-    if let Some(cmd) = cmds.get(*name) {
+    let prompt = r!(console_q.get(trigger.console_id()));
+
+    commands.trigger(ConsolePrintln {
+        message: format!("{}{}", **prompt, trigger.input()),
+        console_id: trigger.console_id(),
+    });
+
+    let name = r!(trigger.args().first());
+
+    if let Some(cmd) = cmds.get(name) {
         commands.run_system_with(cmd.dispatch, trigger.event().clone());
     } else if let Some(cmd) = ConsoleShellCommands::iter().find(|b| b.to_string() == *name) {
         commands.run_system_cached_with(shell_commands, (cmd, trigger.console_id));
@@ -48,5 +53,5 @@ fn shell_commands(
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_observer(on_call_console_command);
+    app.add_observer(on_submit);
 }

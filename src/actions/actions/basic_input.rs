@@ -4,7 +4,10 @@ use crate::prelude::*;
 
 pub fn delete_char(input: In<ConsoleActionSystemInput>, mut console_q: Query<&mut Console>) {
     if let Ok(mut console) = console_q.get_mut(input.console_id) {
-        console.input.pop();
+        let popped = console.input.pop();
+        if let Some(popped) = popped {
+            console.cursor -= popped.len_utf8();
+        }
     } else {
         error!(
             "Could not delete char from console with id {}",
@@ -16,6 +19,7 @@ pub fn delete_word(input: In<ConsoleActionSystemInput>, mut console_q: Query<&mu
     if let Ok(mut console) = console_q.get_mut(input.console_id) {
         let last_ws = console.input.rfind(char::is_whitespace).unwrap_or_default();
         console.input.truncate(last_ws);
+        console.cursor = last_ws;
     } else {
         error!(
             "Could not delete word from console with id {}",
@@ -53,10 +57,14 @@ pub fn submit(
     mut commands: Commands,
 ) {
     if let Ok((mut console, mut history)) = query.get_mut(input.console_id) {
-        commands.trigger(CallCommandEvent {
-            command_name: console.input.clone(),
-            console_id: input.console_id,
-        });
+        if let Some(event) = SubmitEvent::new(input.console_id, console.input.clone()) {
+            commands.trigger(event);
+        } else {
+            commands.trigger(ConsolePrintln {
+                message: "Invalid shell expression".into(),
+                console_id: input.console_id,
+            });
+        }
         let history_value = std::mem::take(&mut console.input);
         console.cursor = 0;
         history.push(history_value);

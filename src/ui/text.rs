@@ -155,17 +155,15 @@ impl ConsoleTextPipeline {
         // Parsing happens here.
         // TODO: Further split these into stylized spans.
         // ANSI text should be escaped into subspans with colors &c
-        let mut count = 0;
         let mut lines: Vec<String> = buffer
             .as_lines()
             .iter()
             .skip(view.start)
-            .map_while(|vec| {
-                count += 1;
-                (count < view.range).then_some(vec.iter().cloned().collect())
-            })
+            .take(view.range)
+            .map(|vec| vec.iter().cloned().collect::<String>() + "\n")
             .collect();
         lines.push(format!("{}{}", prompt.0, console.input));
+        info!(?lines, ?view, "{:#?}", buffer);
 
         cosmic_buffer.set_rich_text(
             font_system,
