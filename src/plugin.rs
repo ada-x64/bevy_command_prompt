@@ -24,9 +24,9 @@ pub fn handle_input(
 ) {
     if !keyboard_events.is_empty()
         && let Some(console_id) = focus.0
-        && let Ok((mut action_queue, mut layout)) = q_console.get_mut(console_id)
+        && let Ok((mut action_queue, mut block)) = q_console.get_mut(console_id)
     {
-        layout.needs_rerender = true;
+        block.trigger_rerender();
         // want to collect here so we can iterate multiple times.
         let keyboard_events = keyboard_events.read().collect::<Vec<_>>();
         let mouse_events = mouse_events.read().collect::<Vec<_>>();

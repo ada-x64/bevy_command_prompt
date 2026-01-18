@@ -36,18 +36,19 @@ fn shell_commands(
         &mut ConsoleBuffer,
         &ConsoleBufferView,
         &ConsolePrompt,
-        &ComputedConsoleTextBlock,
+        &mut ComputedConsoleTextBlock,
     )>,
     mut commands: Commands,
 ) {
     match input.0.0 {
         ConsoleShellCommands::Clear => {
-            let (entity, mut buffer, view, prompt, block) = console_q.get_mut(input.0.1).unwrap();
+            let (entity, mut buffer, view, prompt, mut block) =
+                console_q.get_mut(input.0.1).unwrap();
             buffer.clear();
             // TODO: This should be a console action.
             commands
                 .entity(entity)
-                .insert(view.jump_to_bottom(prompt, block));
+                .insert(view.jump_to_bottom(prompt, &mut block));
         }
     }
 }

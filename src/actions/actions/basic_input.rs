@@ -73,44 +73,46 @@ pub fn submit(
     }
 }
 
-// TODO: another console action
 fn on_scroll(
     input: In<ConsoleActionSystemInput>,
     mut commands: Commands,
     console_q: Query<(&ConsoleBuffer, &ConsolePrompt, &ConsoleBufferView)>,
 ) {
-    let scroll = input.matched_scroll();
-    if scroll.is_none() {
-        error!("Tried to scroll console with no scroll value");
-        return;
-    }
-    let scroll = scroll.unwrap();
+    info!(?input);
+    let scroll = r!(input.matched_scroll());
     let (buffer, prompt, view) = console_q.get(input.console_id).unwrap();
-    let range = view.range;
-    let buffer_size = buffer.line_count();
-    let prompt_size = prompt.lines().count();
-    if buffer_size <= range {
-        return;
-    }
-    let start = view
-        .start
-        .saturating_add_signed(scroll.delta.y as isize)
-        .min(buffer_size - range + prompt_size);
-    let new_view = ConsoleBufferView { start, ..*view };
-    commands.entity(input.console_id).insert(new_view);
+    commands
+        .entity(input.console_id)
+        .insert(view.scroll(scroll.delta.y as isize, buffer, prompt));
+}
+
+pub fn scroll_line(
+    input: In<ConsoleActionSystemInput>,
+    console_q: Query<(&ConsoleBuffer, &ConsolePrompt, &ConsoleBufferView)>,
+    mut commands: Commands,
+) {
+    let dir = match input.0.matched_logical_keys().find(|k| **k != Key::Control) {
+        Some(Key::ArrowUp) => -1,
+        Some(Key::ArrowDown) => 1,
+        _ => unreachable!(),
+    };
+    let (buffer, prompt, view) = r!(console_q.get(input.console_id));
+    commands
+        .entity(input.console_id)
+        .insert(view.scroll(dir as isize, buffer, prompt));
 }
 
 pub fn jump_to_bottom(
     input: In<ConsoleActionSystemInput>,
     mut console_q: Query<(
-        &ComputedConsoleTextBlock,
+        &mut ComputedConsoleTextBlock,
         &ConsolePrompt,
         &mut ConsoleBufferView,
     )>,
     mut commands: Commands,
 ) {
-    let (block, prompt, view) = console_q.get_mut(input.console_id).unwrap();
-    let new_view = view.jump_to_bottom(prompt, block);
+    let (mut block, prompt, view) = console_q.get_mut(input.console_id).unwrap();
+    let new_view = view.jump_to_bottom(prompt, &mut block);
     commands.entity(input.console_id).insert(new_view);
 }
 
@@ -138,5 +140,10 @@ pub(crate) fn plugin(app: &mut App) {
     app.register_console_action(
         ConsoleActionKeybind::new(ConsoleInput::AnyKey),
         jump_to_bottom,
+    );
+    app.register_console_action(
+        ConsoleActionKeybind::new([Key::ArrowUp, Key::ArrowDown])
+            .with_modifiers([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
+        scroll_line,
     );
 }

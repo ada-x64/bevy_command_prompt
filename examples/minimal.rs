@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_command_prompt::prelude::*;
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+// use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 
 pub fn main() {
     let mut app = App::new();

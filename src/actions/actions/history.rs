@@ -2,7 +2,7 @@ use bevy::input::keyboard::Key;
 
 use crate::prelude::*;
 
-/// Sets the
+// TODO: History gets a bit out of order.
 pub fn set_from_history(
     input: In<ConsoleActionSystemInput>,
     mut q_console: Query<(&mut Console, &ConsoleHistory)>,
@@ -53,7 +53,8 @@ pub fn set_from_history(
 
 pub fn plugin(app: &mut App) {
     app.register_console_action(
-        ConsoleActionKeybind::new([Key::ArrowUp, Key::ArrowDown, Key::Enter]),
+        ConsoleActionKeybind::new([Key::ArrowUp, Key::ArrowDown, Key::Enter])
+            .without_modifiers([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
         set_from_history,
     );
 }
