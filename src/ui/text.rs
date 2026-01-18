@@ -35,12 +35,12 @@ pub struct ConsoleTextLayout {
 
 /// Ideally, this would just be a [bevy::text::ComputedTextBlock], but it's fields are currently private.
 #[derive(Component, Debug, Clone)]
-pub struct ComputedConsoleBufferLayout {
+pub struct ComputedConsoleTextBlock {
     pub(crate) buffer: CosmicBuffer,
     pub(crate) needs_rerender: bool,
     pub(crate) entities: SmallVec<[TextEntity; 1]>,
 }
-impl Default for ComputedConsoleBufferLayout {
+impl Default for ComputedConsoleTextBlock {
     fn default() -> Self {
         Self {
             buffer: Default::default(),
@@ -99,7 +99,7 @@ impl ConsoleTextPipeline {
         linebreak: LineBreak,
         bounds: TextBounds,
         scale_factor: f64,
-        computed: &mut ComputedConsoleBufferLayout,
+        computed: &mut ComputedConsoleTextBlock,
         font_system: &mut CosmicFontSystem,
         settings: &ConsoleUiSettings,
         line_height: &LineHeight,
@@ -197,7 +197,7 @@ impl ConsoleTextPipeline {
         fonts: &Assets<Font>,
         scale_factor: f64,
         layout: &ConsoleTextLayout,
-        computed: &mut ComputedConsoleBufferLayout,
+        computed: &mut ComputedConsoleTextBlock,
         font_system: &mut CosmicFontSystem,
         settings: &ConsoleUiSettings,
         line_height: &LineHeight,
@@ -246,7 +246,7 @@ impl ConsoleTextPipeline {
     pub fn update_layout_info(
         &mut self,
         layout_info: &mut TextLayoutInfo,
-        computed: &mut ComputedConsoleBufferLayout,
+        computed: &mut ComputedConsoleTextBlock,
         bounds: TextBounds,
         q_settings: Query<&ConsoleUiSettings>,
         font_system: &mut CosmicFontSystem,
@@ -484,7 +484,7 @@ pub fn measure_console_text_system(
             Ref<ConsoleTextLayout>,
             &mut ContentSize,
             &mut ConsoleBufferFlags,
-            &mut ComputedConsoleBufferLayout,
+            &mut ComputedConsoleTextBlock,
             Ref<ComputedUiRenderTargetInfo>,
             &ComputedNode,
             Ref<FontHinting>,
@@ -573,7 +573,7 @@ pub fn update_console_text_layout(
         &ConsoleTextLayout,
         &mut TextLayoutInfo,
         &mut ConsoleBufferFlags,
-        &mut ComputedConsoleBufferLayout,
+        &mut ComputedConsoleTextBlock,
     )>,
     settings: Query<&ConsoleUiSettings>,
     mut font_system: ResMut<CosmicFontSystem>,
@@ -633,7 +633,7 @@ pub fn update_console_text_layout(
 /// Computes the size of the text area within the provided bounds.
 pub fn compute_console_text_size(
     bounds: TextBounds,
-    computed: &mut ComputedConsoleBufferLayout,
+    computed: &mut ComputedConsoleTextBlock,
     font_system: &mut CosmicFontSystem,
 ) -> Vec2 {
     // Note that this arbitrarily adjusts the buffer layout. We assume the buffer is always 'refreshed'
@@ -658,7 +658,7 @@ pub fn extract_console_text_sections(
             &InheritedVisibility,
             Option<&CalculatedClip>,
             &ComputedUiTargetCamera,
-            &ComputedConsoleBufferLayout,
+            &ComputedConsoleTextBlock,
             &TextColor,
             &TextLayoutInfo,
         )>,

@@ -2,7 +2,7 @@ use crate::{prelude::*, ui::calc_line_height};
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     input_focus::InputFocus,
-    text::{ComputedTextBlock, LineHeight},
+    text::LineHeight,
     ui::ui_layout_system,
 };
 
@@ -13,7 +13,7 @@ use bevy::{
     ConsoleBuffer,
     Console,
     ConsolePrompt,
-    ComputedConsoleBufferLayout,
+    ComputedConsoleTextBlock,
     TextColor,
     LineHeight,
     // copying `Text`s homework
@@ -47,8 +47,12 @@ impl ConsoleBufferView {
             ..self
         }
     }
-    pub fn jump_to_bottom(self, prompt: &ConsolePrompt, computed_text: &ComputedTextBlock) -> Self {
-        let count = computed_text.buffer().0.layout_runs().count();
+    pub fn jump_to_bottom(
+        self,
+        prompt: &ConsolePrompt,
+        computed_text: &ComputedConsoleTextBlock,
+    ) -> Self {
+        let count = computed_text.buffer.0.layout_runs().count();
         let prompt_size = prompt.lines().count();
         let start = count.saturating_sub(self.range).saturating_add(prompt_size);
         Self { start, ..self }
@@ -61,7 +65,7 @@ impl ConsoleBufferView {
                 &ComputedNode,
                 &ConsoleUiSettings,
                 &ConsolePrompt,
-                &mut ComputedConsoleBufferLayout,
+                &mut ComputedConsoleTextBlock,
                 &mut ConsoleBufferFlags,
                 &ConsoleBufferView,
                 &LineHeight,

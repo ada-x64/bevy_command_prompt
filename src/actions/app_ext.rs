@@ -15,8 +15,10 @@ pub type ConsoleActionSystem = SystemId<In<ConsoleActionSystemInput>>;
 
 /// Stores all the registered console actions.
 // NOTE: SystemIds are lightweight,so there's no need to worry about redundancy here.
-#[derive(Resource, Debug, Deref, DerefMut, Default)]
-pub struct ConsoleActionCache(HashMap<ConsoleActionKeybind, ConsoleActionSystem>);
+#[derive(Resource, Debug, Deref, DerefMut, Default, Clone, Reflect)]
+pub struct ConsoleActionCache(
+    #[reflect(ignore)] HashMap<ConsoleActionKeybind, ConsoleActionSystem>,
+);
 
 #[derive(Debug)]
 pub struct ConsoleActionSystemInput {

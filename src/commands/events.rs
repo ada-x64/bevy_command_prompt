@@ -1,4 +1,3 @@
-use bevy::text::ComputedTextBlock;
 use strum::IntoEnumIterator;
 
 use crate::prelude::*;
@@ -32,7 +31,7 @@ fn shell_commands(
         &mut ConsoleBuffer,
         &ConsoleBufferView,
         &ConsolePrompt,
-        &ComputedTextBlock,
+        &ComputedConsoleTextBlock,
     )>,
     mut commands: Commands,
 ) {

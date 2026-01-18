@@ -20,8 +20,9 @@ pub fn handle_input(
     mut mouse_events: MessageReader<MouseButtonInput>,
     actions: Res<ConsoleActionCache>,
     focus: Res<InputFocus>,
-    mut q_console: Query<(&mut ConsoleActionQueue, &mut ComputedConsoleBufferLayout)>,
+    mut q_console: Query<(&mut ConsoleActionQueue, &mut ComputedConsoleTextBlock)>,
 ) {
+    info_once!("{:#?}", actions);
     if !keyboard_events.is_empty()
         && let Some(console_id) = focus.0
         && let Ok((mut action_queue, mut layout)) = q_console.get_mut(console_id)

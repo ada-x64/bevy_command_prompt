@@ -1,4 +1,4 @@
-use bevy::{input::keyboard::Key, text::ComputedTextBlock};
+use bevy::input::keyboard::Key;
 
 use crate::prelude::*;
 
@@ -94,7 +94,11 @@ fn on_scroll(
 
 pub fn jump_to_bottom(
     input: In<ConsoleActionSystemInput>,
-    mut console_q: Query<(&ComputedTextBlock, &ConsolePrompt, &mut ConsoleBufferView)>,
+    mut console_q: Query<(
+        &ComputedConsoleTextBlock,
+        &ConsolePrompt,
+        &mut ConsoleBufferView,
+    )>,
     mut commands: Commands,
 ) {
     let (block, prompt, view) = console_q.get_mut(input.console_id).unwrap();

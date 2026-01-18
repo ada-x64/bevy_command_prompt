@@ -35,9 +35,18 @@ pub enum ConsoleBufferError {
 /// buffer's STDOUT. By default, will cache 1MiB of data.
 #[derive(Component)]
 pub struct ConsoleBuffer(HeapRb<char>);
+impl std::fmt::Debug for ConsoleBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConsoleBuffer")
+            .field("capacity", &self.0.capacity())
+            .field("vacant_len", &self.0.vacant_len())
+            .field("occupied_len", &self.0.occupied_len())
+            .finish()
+    }
+}
 impl Default for ConsoleBuffer {
     fn default() -> Self {
-        Self(HeapRb::<char>::new(2 ^ 20)) // 1MiB
+        Self(HeapRb::<char>::new(1048576)) // 1MiB
     }
 }
 impl ConsoleBuffer {

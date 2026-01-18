@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::prelude::*;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::input::mouse::{AccumulatedMouseScroll, MouseButton, MouseButtonInput};
@@ -52,6 +54,106 @@ pub struct ConsoleActionKeybind {
     pub bad_mods: ModifierInput,
 }
 
+impl fmt::Display for ConsoleActionKeybind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<")?;
+
+        let mut parts = Vec::new();
+
+        // Add modifiers
+        if !self.modifiers.is_empty() {
+            parts.push(format_modifier_input(&self.modifiers));
+        }
+
+        // Add keys
+        if !self.keys.is_empty() {
+            parts.push(format_key_input(&self.keys));
+        }
+
+        if parts.is_empty() {
+            write!(f, "*")?;
+        } else {
+            write!(f, "{}", parts.join("-"))?;
+        }
+
+        // Add negative constraints
+        if !self.bad_mods.is_empty() || !self.bad_keys.is_empty() {
+            write!(f, " !")?;
+            let mut neg_parts = Vec::new();
+
+            if !self.bad_mods.is_empty() {
+                neg_parts.push(format_modifier_input(&self.bad_mods));
+            }
+            if !self.bad_keys.is_empty() {
+                neg_parts.push(format_key_input(&self.bad_keys));
+            }
+
+            write!(f, "{}", neg_parts.join("-"))?;
+        }
+
+        write!(f, ">")
+    }
+}
+
+fn format_key_input(input: &KeyInput) -> String {
+    if input.is_empty() {
+        return String::from("*");
+    }
+
+    // Each inner Vec is an OR group, multiple Vecs are ANDed together
+    input
+        .iter()
+        .map(|or_group| {
+            if or_group.len() == 1 {
+                format_console_input(&or_group[0])
+            } else {
+                format!(
+                    "({})",
+                    or_group
+                        .iter()
+                        .map(format_console_input)
+                        .collect::<Vec<_>>()
+                        .join("|")
+                )
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
+fn format_console_input(input: &ConsoleInput) -> String {
+    match input {
+        ConsoleInput::AnyKey => String::from("Any"),
+        ConsoleInput::AnyCharacter => String::from("Char"),
+        ConsoleInput::Key(key) => format!("{:?}", key),
+        ConsoleInput::Mouse(button) => format!("{:?}", button),
+        ConsoleInput::Scroll => String::from("Scroll"),
+    }
+}
+fn format_modifier_input(input: &ModifierInput) -> String {
+    if input.is_empty() {
+        return String::from("*");
+    }
+
+    input
+        .iter()
+        .map(|or_group| {
+            if or_group.len() == 1 {
+                format!("{:?}", or_group[0])
+            } else {
+                format!(
+                    "({})",
+                    or_group
+                        .iter()
+                        .map(|k| { format!("{:?}", k) })
+                        .collect::<Vec<_>>()
+                        .join("|")
+                )
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
 impl ConsoleActionKeybind {
     /// Creates a new [ConsoleAction] with the given keys.
     ///
@@ -99,61 +201,79 @@ impl ConsoleActionKeybind {
         }
     }
 
-    fn matches(
-        vec: &[Vec<ConsoleInput>],
+    fn match_console_input(
+        input: &ConsoleInput,
+        input_events: &[&KeyboardInput],
+        key_input: &ButtonInput<Key>,
+        mouse_events: &[&MouseButtonInput],
+        mouse_input: &ButtonInput<MouseButton>,
+        scroll: Option<&AccumulatedMouseScroll>,
+    ) -> Option<MatchedInput> {
+        match input {
+            ConsoleInput::AnyCharacter => input_events.iter().find_map(|k| {
+                if let Key::Character(_) = k.logical_key
+                    && key_input.just_pressed(k.logical_key.clone())
+                {
+                    Some((**k).clone().into())
+                } else {
+                    None
+                }
+            }),
+            ConsoleInput::AnyKey => input_events.first().map(|k| (**k).clone().into()),
+            ConsoleInput::Key(logical_key) => key_input
+                .just_pressed(logical_key.clone())
+                .then(|| {
+                    input_events.iter().find_map(|input| {
+                        (input.logical_key == *logical_key).then_some((**input).clone().into())
+                    })
+                })
+                .flatten(),
+            ConsoleInput::Mouse(button) => mouse_events.iter().find_map(|m| {
+                if m.button == *button && mouse_input.just_pressed(m.button) {
+                    Some((**m).into())
+                } else {
+                    None
+                }
+            }),
+            ConsoleInput::Scroll => scroll.map(|s| (*s).into()),
+        }
+    }
+
+    fn match_keys(
+        expected_inputs: &[Vec<ConsoleInput>],
         input_events: &[&KeyboardInput],
         mouse_events: &[&MouseButtonInput],
         key_input: &ButtonInput<Key>,
         mouse_input: &ButtonInput<MouseButton>,
         scroll: Option<&AccumulatedMouseScroll>,
-    ) -> Option<Vec<MatchedInput>> {
-        vec.iter().try_fold(vec![], |mut res, or_group| {
-            let matched = or_group.iter().find_map(|key| match key {
-                ConsoleInput::AnyCharacter => input_events.iter().find_map(|k| {
-                    if let Key::Character(_) = k.logical_key
-                        && key_input.just_pressed(k.logical_key.clone())
-                    {
-                        Some((**k).clone().into())
-                    } else {
-                        None
-                    }
-                }),
-                ConsoleInput::AnyKey => input_events.first().map(|k| (**k).clone().into()),
-                ConsoleInput::Key(logical_key) => key_input
-                    .just_pressed(logical_key.clone())
-                    .then(|| {
-                        input_events.iter().find_map(|input| {
-                            (input.logical_key == *logical_key).then_some((**input).clone().into())
-                        })
-                    })
-                    .flatten(),
-                ConsoleInput::Mouse(button) => mouse_events.iter().find_map(|m| {
-                    if m.button == *button && mouse_input.just_pressed(m.button) {
-                        Some((**m).into())
-                    } else {
-                        None
-                    }
-                }),
-                ConsoleInput::Scroll => scroll.map(|s| (*s).into()),
-            });
+    ) -> Vec<MatchedInput> {
+        expected_inputs.iter().fold(vec![], |mut accum, or_group| {
+            let match_input = |input| {
+                Self::match_console_input(
+                    input,
+                    input_events,
+                    key_input,
+                    mouse_events,
+                    mouse_input,
+                    scroll,
+                )
+            };
+
+            let matched = or_group.iter().find_map(match_input);
 
             if let Some(key) = matched {
-                res.push(key);
-                Some(res)
-            } else {
-                None
+                accum.push(key);
             }
+            accum
         })
     }
-    fn mod_matches(vec: &[Vec<KeyCode>], keys: &ButtonInput<KeyCode>) -> Option<Vec<KeyCode>> {
-        vec.iter().try_fold(vec![], |mut res, or_group| {
+    fn match_mods(vec: &[Vec<KeyCode>], keys: &ButtonInput<KeyCode>) -> Vec<KeyCode> {
+        vec.iter().fold(vec![], |mut res, or_group| {
             let matched = or_group.iter().find(|key| keys.pressed(**key));
             if let Some(key) = matched {
                 res.push(*key);
-                Some(res)
-            } else {
-                None
             }
+            res
         })
     }
 
@@ -167,32 +287,18 @@ impl ConsoleActionKeybind {
         scroll: Option<&AccumulatedMouseScroll>,
         console_id: Entity,
     ) -> Option<ConsoleActionSystemInput> {
-        if Self::matches(
-            &self.bad_keys,
-            input_events,
-            mouse_events,
-            keys,
-            mouse_input,
-            scroll,
-        )
-        .is_some()
-            || Self::mod_matches(&self.bad_mods, key_codes).is_some()
-        {
+        let matches =
+            |k| Self::match_keys(k, input_events, mouse_events, keys, mouse_input, scroll);
+        let mod_matches = |mods| Self::match_mods(mods, key_codes);
+
+        if !matches(&self.bad_keys).is_empty() || !mod_matches(&self.bad_mods).is_empty() {
             return None;
         }
-        let matched_keys = Self::matches(
-            &self.keys,
-            input_events,
-            mouse_events,
-            keys,
-            mouse_input,
-            scroll,
-        );
-        let matched_mods = Self::mod_matches(&self.modifiers, key_codes);
 
-        if let Some(matched_keys) = matched_keys
-            && let Some(matched_mods) = matched_mods
-        {
+        let (matched_keys, matched_mods) = (matches(&self.keys), mod_matches(&self.modifiers));
+        let keys_ok = matched_keys.len() == self.keys.len();
+        let mods_ok = matched_mods.len() == self.modifiers.len();
+        if keys_ok && mods_ok {
             Some(ConsoleActionSystemInput {
                 console_id,
                 matched_input: matched_keys,
