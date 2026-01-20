@@ -50,9 +50,9 @@ pub struct CommandMsg<T: ConsoleCommand> {
 }
 impl<T: ConsoleCommand> CommandMsg<T> {
     pub fn println(&self, commands: &mut Commands, message: String) {
-        commands.trigger(ConsolePrintln {
-            message,
+        commands.write_message(ConsoleWriteMsg {
+            message: message + "\n",
             console_id: self.console_id,
-        })
+        });
     }
 }

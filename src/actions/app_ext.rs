@@ -20,7 +20,7 @@ pub struct ConsoleActionCache(
     #[reflect(ignore)] HashMap<ConsoleActionKeybind, ConsoleActionSystem>,
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConsoleActionSystemInput {
     pub console_id: Entity,
     pub matched_input: Vec<MatchedInput>,

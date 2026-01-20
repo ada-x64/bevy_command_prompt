@@ -4,7 +4,6 @@ use crate::prelude::*;
 
 mod console;
 mod data;
-mod events;
 mod text;
 
 pub mod prelude {
@@ -14,10 +13,9 @@ pub mod prelude {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((events::plugin, console::plugin));
+    app.add_plugins(console::plugin);
     app.init_resource::<InputFocus>();
     app.init_resource::<ConsoleTextPipeline>();
-    app.add_message::<ConsolePrintln>();
     app.add_message::<ConsoleScrollMsg>();
     app.add_message::<ConsoleSubmitMsg>();
 }

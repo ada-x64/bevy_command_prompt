@@ -10,8 +10,8 @@ fn on_submit(
 ) {
     let prompt = r!(console_q.get(trigger.console_id()));
 
-    commands.trigger(ConsolePrintln {
-        message: format!("{}{}", **prompt, trigger.input()),
+    commands.write_message(ConsoleWriteMsg {
+        message: format!("{}{}\n", **prompt, trigger.input()),
         console_id: trigger.console_id(),
     });
 
@@ -22,8 +22,8 @@ fn on_submit(
     } else if let Some(cmd) = ConsoleShellCommands::iter().find(|b| b.to_string() == *name) {
         commands.run_system_cached_with(shell_commands, (cmd, trigger.console_id));
     } else {
-        commands.trigger(ConsolePrintln {
-            message: format!("Unknown command '{name}'"),
+        commands.write_message(ConsoleWriteMsg {
+            message: format!("Unknown command '{name}'\n"),
             console_id: trigger.console_id,
         });
     }

@@ -35,9 +35,9 @@ fn dispatch_cmd<T: ConsoleCommand>(
         Ok(())
     })();
     if let Err(e) = res {
-        commands.trigger(ConsolePrintln {
-            message: e,
+        commands.write_message(ConsoleWriteMsg {
+            message: e + "\n",
             console_id: input.console_id(),
-        })
+        });
     }
 }

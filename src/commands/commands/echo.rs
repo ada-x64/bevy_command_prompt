@@ -69,8 +69,8 @@ fn inner(input: In<CommandMsg<EchoCmd>>, world: &mut World) {
     } else {
         text
     };
-    world.commands().trigger(ConsolePrintln {
-        message,
+    world.commands().write_message(ConsoleWriteMsg {
+        message: message + "\n",
         console_id,
     });
 }

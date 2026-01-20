@@ -60,8 +60,8 @@ pub fn submit(
         if let Some(event) = SubmitEvent::new(input.console_id, console.input.clone()) {
             commands.trigger(event);
         } else {
-            commands.trigger(ConsolePrintln {
-                message: "Invalid shell expression".into(),
+            commands.write_message(ConsoleWriteMsg {
+                message: "Invalid shell expression\n".into(),
                 console_id: input.console_id,
             });
         }

@@ -6,12 +6,6 @@ use ringbuf::{HeapRb, traits::*};
 
 use crate::prelude::*;
 
-#[derive(Message, Event, Clone, Debug)]
-pub struct ConsolePrintln {
-    pub message: String,
-    pub console_id: Entity,
-}
-
 #[derive(Message, Clone, Debug, Reflect)]
 pub struct ConsoleScrollMsg {
     pub message: Pointer<Scroll>,
@@ -128,12 +122,18 @@ fn test_buffer() {
     }
 }
 
-/// Queue with lines to write to the [ConsoleBuffer]
-#[derive(Component, Debug, Reflect, Clone, Default, Deref, DerefMut)]
-pub struct ConsoleWriteQueue(Vec<String>);
+#[derive(Message, Debug, Clone)]
+pub struct ConsoleWriteMsg {
+    pub console_id: Entity,
+    pub message: String,
+}
 
-#[derive(Component, Default, Deref, DerefMut)]
-pub struct ConsoleActionQueue(Vec<(ConsoleActionSystemInput, ConsoleActionSystem)>);
+#[derive(Message, Debug)]
+pub struct ConsoleActionMsg {
+    pub console_id: Entity,
+    pub input: ConsoleActionSystemInput,
+    pub system: ConsoleActionSystem,
+}
 
 #[derive(Component, Debug, Reflect, Clone, Deref, DerefMut)]
 pub struct ConsolePrompt(pub String);

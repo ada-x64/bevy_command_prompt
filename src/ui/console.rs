@@ -113,8 +113,6 @@ impl ConsoleBufferView {
     ConsoleTextLayout,
     ConsoleBuffer,
     ConsoleBufferFlags,
-    ConsoleWriteQueue,
-    ConsoleActionQueue,
     ConsolePrompt,
     ConsoleHistory
 )]

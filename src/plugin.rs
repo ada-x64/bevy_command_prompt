@@ -20,11 +20,12 @@ pub fn handle_input(
     mut mouse_events: MessageReader<MouseButtonInput>,
     actions: Res<ConsoleActionCache>,
     focus: Res<InputFocus>,
-    mut q_console: Query<(&mut ConsoleActionQueue, &mut ComputedConsoleTextBlock)>,
+    mut q_console: Query<&mut ComputedConsoleTextBlock>,
+    mut commands: Commands,
 ) {
     if !keyboard_events.is_empty()
         && let Some(console_id) = focus.0
-        && let Ok((mut action_queue, mut block)) = q_console.get_mut(console_id)
+        && let Ok(mut block) = q_console.get_mut(console_id)
     {
         block.trigger_rerender();
         // want to collect here so we can iterate multiple times.
@@ -45,25 +46,29 @@ pub fn handle_input(
                     )
                     .map(|i| (i, *s))
             })
-            .for_each(|(i, s)| {
-                action_queue.push((i, s));
+            .for_each(|(input, system)| {
+                commands.write_message(ConsoleActionMsg {
+                    console_id,
+                    input,
+                    system,
+                });
             });
     }
 }
 
-pub fn clear_action_queue(queues: Query<&mut ConsoleActionQueue>, mut commands: Commands) {
-    for mut queue in queues {
-        queue
-            .drain(..)
-            .for_each(|(i, s)| commands.run_system_with(s, i));
+pub fn clear_action_queue(mut reader: MessageReader<ConsoleActionMsg>, mut commands: Commands) {
+    for item in reader.read() {
+        commands.run_system_with(item.system, item.input.clone());
     }
 }
 
-pub fn clear_write_queue(queues: Query<(&mut ConsoleWriteQueue, &mut ConsoleBuffer)>) {
-    for (mut queue, mut buffer) in queues {
-        queue.drain(..).for_each(|string| {
-            buffer.write(&string).expect("Failed to write to buffer!");
-        });
+pub fn clear_write_queue(
+    mut reader: MessageReader<ConsoleWriteMsg>,
+    mut buffer_q: Query<&mut ConsoleBuffer>,
+) {
+    for item in reader.read() {
+        let mut buffer = c!(buffer_q.get_mut(item.console_id));
+        c!(buffer.write(&item.message));
     }
 }
 
