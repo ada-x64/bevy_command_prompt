@@ -1,3 +1,6 @@
+//! Console commands are events that modify the world. These are not to be
+//! confused with [bevy::prelude::Command], though the concepts are related.
+
 use crate::prelude::*;
 
 mod app_ext;

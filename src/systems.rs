@@ -1,3 +1,4 @@
+//! General systems related to console functionality. Mostly message queues.
 use crate::prelude::*;
 use bevy::{
     input::{
@@ -5,10 +6,6 @@ use bevy::{
         mouse::{AccumulatedMouseScroll, MouseButtonInput},
     },
     input_focus::InputFocus,
-    render::RenderApp,
-    text::detect_text_needs_rerender,
-    ui::ui_layout_system,
-    ui_render::RenderUiSystems,
 };
 
 pub fn handle_input(
@@ -69,49 +66,5 @@ pub fn clear_write_queue(
     for item in reader.read() {
         let mut buffer = c!(buffer_q.get_mut(item.console_id));
         c!(buffer.write(&item.message));
-    }
-}
-
-/// The main entrypoint for bevy_command_prompt.
-pub struct ConsolePlugin;
-impl Plugin for ConsolePlugin {
-    fn build(&self, app: &mut App) {
-        app.add_plugins((
-            crate::ui::plugin,
-            crate::commands::plugin,
-            crate::actions::plugin,
-        ));
-        app.add_systems(
-            PostUpdate,
-            (
-                (
-                    handle_input.run_if(resource_exists::<InputFocus>),
-                    clear_action_queue,
-                    clear_write_queue,
-                )
-                    .chain()
-                    .before(ui_layout_system),
-                (
-                    // todo: detect if console text needs rerender
-                    measure_console_text_system,
-                    update_console_text_layout,
-                )
-                    .after(bevy::text::free_unused_font_atlases_system)
-                    .before(bevy::asset::AssetEventSystems)
-                    // these are separate entities.
-                    .ambiguous_with(detect_text_needs_rerender::<Text2d>)
-                    .ambiguous_with(detect_text_needs_rerender::<Text>)
-                    .ambiguous_with(bevy::sprite::update_text2d_layout)
-                    .ambiguous_with(bevy::sprite::calculate_bounds_text2d),
-            ),
-        );
-
-        let Some(render_app) = app.get_sub_app_mut(RenderApp) else {
-            return;
-        };
-        render_app.add_systems(
-            ExtractSchedule,
-            extract_console_text_sections.in_set(RenderUiSystems::ExtractText),
-        );
     }
 }

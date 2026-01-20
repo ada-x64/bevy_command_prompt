@@ -1,3 +1,5 @@
+use crate::{prelude::*, ui::calc_line_height};
+
 use std::sync::Arc;
 
 use bevy::{
@@ -6,9 +8,8 @@ use bevy::{
     render::{Extract, sync_world::TemporaryRenderEntity},
     text::{
         CosmicBuffer, CosmicFontSystem, FontAtlasKey, FontAtlasSet, FontFaceInfo, FontSmoothing,
-        LineHeight, PositionedGlyph, RunGeometry, SwashCache, TextBounds, TextEntity,
-        TextLayoutInfo, TextMeasureInfo, add_glyph_to_atlas, get_glyph_atlas_info,
-        load_font_to_fontdb,
+        LineHeight, PositionedGlyph, RunGeometry, SwashCache, TextBounds, TextLayoutInfo,
+        TextMeasureInfo, add_glyph_to_atlas, get_glyph_atlas_info, load_font_to_fontdb,
     },
     ui::{ContentSize, FixedMeasure, NodeMeasure},
     ui_render::{
@@ -17,50 +18,9 @@ use bevy::{
     },
 };
 use cosmic_text::{Attrs, Family, Metrics, Shaping, Wrap};
-use smallvec::SmallVec;
-
-use crate::{prelude::*, ui::calc_line_height};
-
-#[derive(Component, Default, Reflect, Debug)]
-pub struct ConsoleBufferFlags {
-    pub(crate) needs_recompute: bool,
-    pub(crate) needs_measure_fn: bool,
-}
-
-#[derive(Component, Default, Reflect, Debug)]
-#[require(TextLayoutInfo)]
-pub struct ConsoleTextLayout {
-    pub linebreak: LineBreak,
-}
-
-/// Ideally, this would just be a [bevy::text::ComputedTextBlock], but it's fields are currently private.
-#[derive(Component, Debug, Clone)]
-pub struct ComputedConsoleTextBlock {
-    buffer: CosmicBuffer,
-    needs_rerender: bool,
-    entities: SmallVec<[TextEntity; 1]>,
-}
-
-impl ComputedConsoleTextBlock {
-    pub fn buffer(&self) -> &CosmicBuffer {
-        &self.buffer
-    }
-    pub fn trigger_rerender(&mut self) {
-        self.needs_rerender = true;
-    }
-}
-impl Default for ComputedConsoleTextBlock {
-    fn default() -> Self {
-        Self {
-            buffer: Default::default(),
-            needs_rerender: true,
-            entities: Default::default(),
-        }
-    }
-}
 
 #[derive(Debug)]
-struct GlyphSectionInfo {
+pub struct GlyphSectionInfo {
     id: AssetId<Font>,
     smoothing: FontSmoothing,
     font_size: f32,
@@ -635,20 +595,6 @@ pub fn update_console_text_layout(
             }
         }
     }
-}
-
-/// Computes the size of the text area within the provided bounds.
-pub fn compute_console_text_size(
-    bounds: TextBounds,
-    computed: &mut ComputedConsoleTextBlock,
-    font_system: &mut CosmicFontSystem,
-) -> Vec2 {
-    // Note that this arbitrarily adjusts the buffer layout. We assume the buffer is always 'refreshed'
-    // whenever a canonical state is required.
-    computed
-        .buffer
-        .set_size(&mut font_system.0, bounds.width, bounds.height);
-    buffer_dimensions(&computed.buffer)
 }
 
 // If we can use a ComputedTextBlock above, then we won't need this function.
