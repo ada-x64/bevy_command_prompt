@@ -29,26 +29,19 @@ fn on_submit(
     }
 }
 
+// TODO: This should be just a regular command. /usr/bin/clear
 fn shell_commands(
+    // command, console_id
     input: In<(ConsoleShellCommands, Entity)>,
-    mut console_q: Query<(
-        Entity,
-        &mut ConsoleBuffer,
-        &ConsoleBufferView,
-        &ConsolePrompt,
-        &mut ComputedConsoleTextBlock,
-    )>,
+    mut console_q: Query<&mut ConsoleBuffer>,
     mut commands: Commands,
 ) {
-    match input.0.0 {
+    let In((cmd, console_id)) = input;
+    match cmd {
         ConsoleShellCommands::Clear => {
-            let (entity, mut buffer, view, prompt, mut block) =
-                console_q.get_mut(input.0.1).unwrap();
+            let mut buffer = console_q.get_mut(console_id).unwrap();
             buffer.clear();
-            // TODO: This should be a console action.
-            commands
-                .entity(entity)
-                .insert(view.jump_to_bottom(prompt, &mut block));
+            commands.write_message(ConsoleViewMsg::jump_to_bottom(console_id));
         }
     }
 }

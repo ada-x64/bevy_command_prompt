@@ -68,3 +68,32 @@ pub fn clear_write_queue(
         c!(buffer.write(&item.message));
     }
 }
+
+pub fn clear_view_queue(
+    mut reader: MessageReader<ConsoleViewMsg>,
+    mut query: Query<(
+        &ConsoleBuffer,
+        &ConsoleBufferView,
+        &ConsolePrompt,
+        &mut ComputedConsoleTextBlock,
+    )>,
+    mut commands: Commands,
+) {
+    // collect for multiple iteration
+    let reader = reader.read().collect::<Vec<_>>();
+    // get all console_ids for bucketing
+    let ids = reader.iter().fold(vec![], |mut accum, msg| {
+        if !accum.contains(&msg.console_id) {
+            accum.push(msg.console_id)
+        }
+        accum
+    });
+    for console_id in ids {
+        let (buffer, view, prompt, mut block) = c!(query.get_mut(console_id));
+        let new_view = reader.iter().fold(*view, |view, msg| match msg.action {
+            ConsoleViewAction::Scroll(ydelta) => view.scroll(ydelta, buffer, prompt),
+            ConsoleViewAction::JumpToBottom => view.jump_to_bottom(prompt, &mut block),
+        });
+        commands.entity(console_id).insert(new_view);
+    }
+}

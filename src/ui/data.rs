@@ -11,33 +11,24 @@ pub struct ConsoleScrollMsg {
     pub console_id: Entity,
 }
 
-#[derive(Debug, Clone, Copy, Reflect)]
+#[derive(Debug, Clone, Copy, Reflect, PartialEq, Eq)]
 pub enum ConsoleViewAction {
-    Scroll(i32),
-    Resize { width: u32, height: u32 },
+    Scroll(isize),
     JumpToBottom,
 }
 
-#[derive(Message, Clone, Debug, Reflect)]
+#[derive(Message, Clone, Debug, Reflect, PartialEq)]
 pub struct ConsoleViewMsg {
-    action: ConsoleViewAction,
-    console_id: Entity,
+    pub action: ConsoleViewAction,
+    pub console_id: Entity,
 }
 impl ConsoleViewMsg {
     /// Scroll the current start position by the specified amount.
     /// A negative ydelta will scroll the view _up,_ backwards in time,
     /// while a postivie ydelta will scroll the view _down_, forwards in time.
-    pub fn scroll(ydelta: i32, console_id: Entity) -> Self {
+    pub fn scroll(ydelta: isize, console_id: Entity) -> Self {
         Self {
             action: ConsoleViewAction::Scroll(ydelta),
-            console_id,
-        }
-    }
-
-    /// Resizes the view. Units are _characters._
-    pub fn resize(width: u32, height: u32, console_id: Entity) -> Self {
-        Self {
-            action: ConsoleViewAction::Resize { width, height },
             console_id,
         }
     }

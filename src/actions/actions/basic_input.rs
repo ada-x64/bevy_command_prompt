@@ -27,7 +27,11 @@ pub fn delete_word(input: In<ConsoleActionSystemInput>, mut console_q: Query<&mu
         );
     }
 }
-pub fn write_char(input: In<ConsoleActionSystemInput>, mut console_q: Query<&mut Console>) {
+pub fn write_char(
+    input: In<ConsoleActionSystemInput>,
+    mut console_q: Query<&mut Console>,
+    mut commands: Commands,
+) {
     if let Ok(mut console) = console_q.get_mut(input.console_id) {
         let pos = console.cursor;
         for key in input.matched_logical_keys() {
@@ -43,6 +47,7 @@ pub fn write_char(input: In<ConsoleActionSystemInput>, mut console_q: Query<&mut
                 _ => {}
             }
         }
+        commands.write_message(ConsoleViewMsg::jump_to_bottom(input.console_id));
     } else {
         error!(
             "Could not write char to console with id {}",
@@ -73,47 +78,22 @@ pub fn submit(
     }
 }
 
-fn on_scroll(
-    input: In<ConsoleActionSystemInput>,
-    mut commands: Commands,
-    console_q: Query<(&ConsoleBuffer, &ConsolePrompt, &ConsoleBufferView)>,
-) {
+fn on_scroll(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
     info!(?input);
     let scroll = r!(input.matched_scroll());
-    let (buffer, prompt, view) = console_q.get(input.console_id).unwrap();
-    commands
-        .entity(input.console_id)
-        .insert(view.scroll(scroll.delta.y as isize, buffer, prompt));
+    commands.write_message(ConsoleViewMsg::scroll(
+        scroll.delta.y as isize,
+        input.console_id,
+    ));
 }
 
-pub fn scroll_line(
-    input: In<ConsoleActionSystemInput>,
-    console_q: Query<(&ConsoleBuffer, &ConsolePrompt, &ConsoleBufferView)>,
-    mut commands: Commands,
-) {
-    let dir = match input.0.matched_logical_keys().find(|k| **k != Key::Control) {
+pub fn scroll_line(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
+    let delta = match input.0.matched_logical_keys().find(|k| **k != Key::Control) {
         Some(Key::ArrowUp) => -1,
         Some(Key::ArrowDown) => 1,
         _ => unreachable!(),
     };
-    let (buffer, prompt, view) = r!(console_q.get(input.console_id));
-    commands
-        .entity(input.console_id)
-        .insert(view.scroll(dir as isize, buffer, prompt));
-}
-
-pub fn jump_to_bottom(
-    input: In<ConsoleActionSystemInput>,
-    mut console_q: Query<(
-        &mut ComputedConsoleTextBlock,
-        &ConsolePrompt,
-        &mut ConsoleBufferView,
-    )>,
-    mut commands: Commands,
-) {
-    let (mut block, prompt, view) = console_q.get_mut(input.console_id).unwrap();
-    let new_view = view.jump_to_bottom(prompt, &mut block);
-    commands.entity(input.console_id).insert(new_view);
+    commands.write_message(ConsoleViewMsg::scroll(delta, input.console_id));
 }
 
 pub(crate) fn plugin(app: &mut App) {
@@ -137,10 +117,6 @@ pub(crate) fn plugin(app: &mut App) {
         submit,
     );
     app.register_console_action(ConsoleActionKeybind::new(ConsoleInput::Scroll), on_scroll);
-    app.register_console_action(
-        ConsoleActionKeybind::new(ConsoleInput::AnyKey),
-        jump_to_bottom,
-    );
     app.register_console_action(
         ConsoleActionKeybind::new([Key::ArrowUp, Key::ArrowDown])
             .with_modifiers([KeyCode::ShiftLeft, KeyCode::ShiftRight]),

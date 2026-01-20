@@ -31,6 +31,7 @@ impl Plugin for ConsolePlugin {
                 handle_input.run_if(resource_exists::<InputFocus>),
                 clear_action_queue,
                 clear_write_queue,
+                clear_view_queue,
             )
                 .chain()
                 .before(ui_layout_system),

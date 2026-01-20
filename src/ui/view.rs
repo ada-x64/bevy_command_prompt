@@ -52,7 +52,7 @@ impl ConsoleBufferView {
             ..self
         }
     }
-    pub fn jump_to_bottom(
+    pub(crate) fn jump_to_bottom(
         self,
         prompt: &ConsolePrompt,
         computed_text: &mut ComputedConsoleTextBlock,

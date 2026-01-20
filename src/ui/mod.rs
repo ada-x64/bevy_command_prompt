@@ -24,6 +24,9 @@ pub fn plugin(app: &mut App) {
     app.init_resource::<ConsoleTextPipeline>();
     app.add_message::<ConsoleScrollMsg>();
     app.add_message::<ConsoleSubmitMsg>();
+    app.add_message::<ConsoleViewMsg>();
+    app.add_message::<ConsoleActionMsg>();
+    app.add_message::<ConsoleWriteMsg>();
 }
 
 pub fn calc_line_height(line_height: &LineHeight, font_size: f32) -> f32 {
