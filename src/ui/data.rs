@@ -76,17 +76,12 @@ pub struct ConsoleHistory(Vec<String>);
 #[component(immutable, on_insert=Self::on_insert)]
 #[require(Node)]
 pub struct ConsoleUiSettings {
-    pub text_font: TextFont,
     pub font_color: Color,
     pub background_color: Color,
 }
 impl Default for ConsoleUiSettings {
     fn default() -> Self {
         Self {
-            text_font: TextFont {
-                font_size: 12.,
-                ..Default::default()
-            },
             font_color: WHITE.into(),
             background_color: BLACK.into(),
         }
@@ -98,7 +93,6 @@ impl ConsoleUiSettings {
             let this = world.get::<Self>(ctx.entity).unwrap();
             (
                 BackgroundColor(this.background_color),
-                this.text_font.clone(),
                 TextColor(this.font_color),
             )
         };

@@ -2,7 +2,6 @@ use crate::prelude::*;
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     input_focus::InputFocus,
-    ui::ui_layout_system,
 };
 
 #[derive(Component, Debug, Reflect, Clone, Default)]
@@ -14,7 +13,8 @@ use bevy::{
     ConsoleBuffer,
     ConsoleBufferFlags,
     ConsolePrompt,
-    ConsoleHistory
+    ConsoleHistory,
+    TextFont
 )]
 #[component(on_add=Self::on_add)]
 pub struct Console {
@@ -34,6 +34,10 @@ impl Console {
                 ..Default::default()
             },
             ConsoleBufferView::new(ctx.entity),
+            TextFont {
+                font_size: 12.,
+                ..Default::default()
+            },
         );
         world
             .commands()
@@ -52,11 +56,4 @@ impl Console {
             console_id: trigger.entity,
         });
     }
-}
-
-pub fn plugin(app: &mut App) {
-    app.add_systems(
-        PostUpdate,
-        ConsoleBufferView::on_resize.after(ui_layout_system),
-    );
 }

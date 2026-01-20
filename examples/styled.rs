@@ -21,14 +21,14 @@ pub fn main() {
                     Console::default(),
                     ConsolePrompt("<=================>\n=>".into()),
                     ConsoleUiSettings {
-                        text_font: TextFont {
-                            font,
-                            font_size: 12.,
-                            ..Default::default()
-                        },
                         font_color: tailwind::AMBER_700.into(),
                         background_color: tailwind::SLATE_200.into(),
-                    }
+                    },
+                    TextFont {
+                        font,
+                        font_size: 12.,
+                        ..Default::default()
+                    },
                 ],
             ));
         },

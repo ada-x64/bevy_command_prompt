@@ -1,6 +1,6 @@
 //! Implementation of the console UI.
 
-use bevy::{input_focus::InputFocus, text::LineHeight};
+use bevy::input_focus::InputFocus;
 
 use crate::prelude::*;
 
@@ -19,7 +19,7 @@ pub mod prelude {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins((console::plugin, text::plugin));
+    app.add_plugins(text::plugin);
     app.init_resource::<InputFocus>();
     app.init_resource::<ConsoleTextPipeline>();
     app.add_message::<ConsoleScrollMsg>();
@@ -27,11 +27,4 @@ pub fn plugin(app: &mut App) {
     app.add_message::<ConsoleViewMsg>();
     app.add_message::<ConsoleActionMsg>();
     app.add_message::<ConsoleWriteMsg>();
-}
-
-pub fn calc_line_height(line_height: &LineHeight, font_size: f32) -> f32 {
-    match line_height {
-        LineHeight::Px(px) => *px,
-        LineHeight::RelativeToFont(scale) => *scale * font_size,
-    }
 }

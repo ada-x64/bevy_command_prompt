@@ -1,11 +1,10 @@
-use crate::{prelude::*, ui::calc_line_height};
+use crate::prelude::*;
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     text::LineHeight,
 };
 
 // TODO: Virtual scrolling requires custom scroll bar.
-// TODO: Move from 'on_insert' pattern to an action queue
 #[derive(Component, Debug, Clone, Reflect, Copy)]
 #[require(
     Node,
@@ -38,67 +37,35 @@ impl ConsoleBufferView {
         let mut block = r!(entt.get_mut::<ComputedConsoleTextBlock>());
         block.trigger_rerender();
     }
-    fn resize(
-        self,
-        container_height: f32,
-        line_height: f32,
-        lines: usize,
-        prompt_lines: usize,
-    ) -> Self {
-        let range = ((container_height / line_height) as usize).saturating_sub(prompt_lines);
+    pub(crate) fn jump_to_bottom(self) -> Self {
+        Self { start: 0, ..self }
+    }
+
+    pub(crate) fn resize(self, container_height: f32, line_height: f32) -> Self {
+        let range = (container_height / line_height) as usize;
+        info!(container_height, line_height, range);
         ConsoleBufferView {
-            start: lines.saturating_sub(range),
+            start: 0,
             range,
             ..self
         }
     }
-    pub(crate) fn jump_to_bottom(
+    pub(crate) fn scroll(
         self,
+        value: isize,
+        buffer: &ConsoleBuffer,
         prompt: &ConsolePrompt,
-        computed_text: &mut ComputedConsoleTextBlock,
+        console: &Console,
     ) -> Self {
-        let count = computed_text.buffer().0.layout_runs().count();
-        let prompt_size = prompt.lines().count();
-        let start = count.saturating_sub(self.range).saturating_add(prompt_size);
-        Self { start, ..self }
-    }
-    pub(crate) fn on_resize(
-        q: Query<
-            (
-                Entity,
-                &ComputedNode,
-                &ConsoleUiSettings,
-                &ConsolePrompt,
-                &ComputedConsoleTextBlock,
-                &mut ConsoleBufferFlags,
-                &ConsoleBufferView,
-                &LineHeight,
-            ),
-            Or<(Changed<ComputedNode>, Added<ConsoleBufferView>)>,
-        >,
-        mut commands: Commands,
-    ) {
-        for (entity, node, settings, prompt, block, mut flags, view, line_height) in q {
-            let new_view = view.resize(
-                node.size().y,
-                calc_line_height(line_height, settings.text_font.font_size),
-                block.buffer().layout_runs().count(),
-                prompt.lines().count(),
-            );
-            commands.entity(entity).insert(new_view);
-            flags.needs_measure_fn = true;
-        }
-    }
-    pub fn scroll(self, value: isize, buffer: &ConsoleBuffer, prompt: &ConsolePrompt) -> Self {
         let buffer_size = buffer.line_count();
-        let prompt_size = prompt.lines().count();
         if buffer_size <= self.range {
             return self;
         }
+        let input_lines = prompt.lines().count() - 1 + console.input.lines().count();
         let start = self
             .start
             .saturating_add_signed(value)
-            .min(buffer_size - self.range + prompt_size);
+            .min(buffer_size + input_lines - self.range);
         Self { start, ..self }
     }
 }

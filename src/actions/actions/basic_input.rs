@@ -81,10 +81,7 @@ pub fn submit(
 fn on_scroll(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
     info!(?input);
     let scroll = r!(input.matched_scroll());
-    commands.write_message(ConsoleViewMsg::scroll(
-        scroll.delta.y as isize,
-        input.console_id,
-    ));
+    commands.write_message(ConsoleViewMsg::scroll(scroll, input.console_id));
 }
 
 pub fn scroll_line(input: In<ConsoleActionSystemInput>, mut commands: Commands) {

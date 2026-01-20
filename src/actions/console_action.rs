@@ -2,14 +2,14 @@ use core::fmt;
 
 use crate::prelude::*;
 use bevy::input::keyboard::{Key, KeyboardInput};
-use bevy::input::mouse::{AccumulatedMouseScroll, MouseButton, MouseButtonInput};
+use bevy::input::mouse::{MouseButton, MouseButtonInput};
 use variadics_please::all_tuples;
 
 #[derive(Debug, Clone, Reflect)]
 pub enum MatchedInput {
     Key(KeyboardInput),
     Mouse(MouseButtonInput),
-    Scroll(AccumulatedMouseScroll),
+    Scroll(isize), //lines
 }
 impl From<KeyboardInput> for MatchedInput {
     fn from(value: KeyboardInput) -> Self {
@@ -19,11 +19,6 @@ impl From<KeyboardInput> for MatchedInput {
 impl From<MouseButtonInput> for MatchedInput {
     fn from(value: MouseButtonInput) -> Self {
         MatchedInput::Mouse(value)
-    }
-}
-impl From<AccumulatedMouseScroll> for MatchedInput {
-    fn from(value: AccumulatedMouseScroll) -> Self {
-        MatchedInput::Scroll(value)
     }
 }
 
@@ -207,7 +202,7 @@ impl ConsoleActionKeybind {
         key_input: &ButtonInput<Key>,
         mouse_events: &[&MouseButtonInput],
         mouse_input: &ButtonInput<MouseButton>,
-        scroll: Option<&AccumulatedMouseScroll>,
+        scroll: isize,
     ) -> Option<MatchedInput> {
         match input {
             ConsoleInput::AnyCharacter => input_events.iter().find_map(|k| {
@@ -235,7 +230,7 @@ impl ConsoleActionKeybind {
                     None
                 }
             }),
-            ConsoleInput::Scroll => scroll.map(|s| (*s).into()),
+            ConsoleInput::Scroll => (scroll != 0).then_some(MatchedInput::Scroll(scroll)),
         }
     }
 
@@ -245,7 +240,7 @@ impl ConsoleActionKeybind {
         mouse_events: &[&MouseButtonInput],
         key_input: &ButtonInput<Key>,
         mouse_input: &ButtonInput<MouseButton>,
-        scroll: Option<&AccumulatedMouseScroll>,
+        scroll: isize,
     ) -> Vec<MatchedInput> {
         expected_inputs.iter().fold(vec![], |mut accum, or_group| {
             let match_input = |input| {
@@ -281,10 +276,10 @@ impl ConsoleActionKeybind {
         &self,
         input_events: &[&KeyboardInput],
         mouse_events: &[&MouseButtonInput],
+        scroll: isize,
         keys: &ButtonInput<Key>,
         key_codes: &ButtonInput<KeyCode>,
         mouse_input: &ButtonInput<MouseButton>,
-        scroll: Option<&AccumulatedMouseScroll>,
         console_id: Entity,
     ) -> Option<ConsoleActionSystemInput> {
         let matches =

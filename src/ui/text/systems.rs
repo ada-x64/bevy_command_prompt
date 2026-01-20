@@ -70,6 +70,7 @@ impl ConsoleTextPipeline {
         scale_factor: f64,
         computed: &mut ComputedConsoleTextBlock,
         font_system: &mut CosmicFontSystem,
+        text_font: &TextFont,
         settings: &ConsoleUiSettings,
         line_height: &LineHeight,
         view: &ConsoleBufferView,
@@ -82,13 +83,13 @@ impl ConsoleTextPipeline {
         let font_system = &mut font_system.0;
 
         // Return early if a font is not loaded yet.
-        if !fonts.contains(settings.text_font.font.id()) {
+        if !fonts.contains(text_font.font.id()) {
             return Err(TextError::NoSuchFont);
         }
 
         // Load Bevy fonts into cosmic-text's font system.
         let face_info = load_font_to_fontdb(
-            &settings.text_font,
+            text_font,
             font_system,
             &mut self.map_handle_to_font_id,
             fonts,
@@ -102,7 +103,7 @@ impl ConsoleTextPipeline {
         // in cosmic-text.
         let attrs = get_attrs(
             0,
-            &settings.text_font,
+            text_font,
             *line_height,
             settings.font_color,
             &face_info,
@@ -124,15 +125,18 @@ impl ConsoleTextPipeline {
         // Parsing happens here.
         // TODO: Further split these into stylized spans.
         // ANSI text should be escaped into subspans with colors &c
+        // TODO: This should be rendered into a cosmic buffer first
+        let input_size = prompt.lines().count() - 1 + console.input.lines().count();
         let mut lines: Vec<String> = buffer
             .as_lines()
             .iter()
-            .skip(view.start)
+            .rev()
+            .skip(view.start.saturating_sub(input_size))
             .take(view.range)
             .map(|vec| vec.iter().cloned().collect::<String>() + "\n")
+            .rev()
             .collect();
         lines.push(format!("{}{}", prompt.0, console.input));
-        info!(?view, "{:#?}\n", buffer);
 
         cosmic_buffer.set_rich_text(
             font_system,
@@ -166,6 +170,7 @@ impl ConsoleTextPipeline {
         layout: &ConsoleTextLayout,
         computed: &mut ComputedConsoleTextBlock,
         font_system: &mut CosmicFontSystem,
+        text_font: &TextFont,
         settings: &ConsoleUiSettings,
         line_height: &LineHeight,
         buffer: &ConsoleBuffer,
@@ -186,6 +191,7 @@ impl ConsoleTextPipeline {
             scale_factor,
             computed,
             font_system,
+            text_font,
             settings,
             line_height,
             view,
@@ -215,7 +221,7 @@ impl ConsoleTextPipeline {
         layout_info: &mut TextLayoutInfo,
         computed: &mut ComputedConsoleTextBlock,
         bounds: TextBounds,
-        q_settings: Query<&ConsoleUiSettings>,
+        q_font: Query<&TextFont>,
         font_system: &mut CosmicFontSystem,
         scale_factor: f64,
         font_atlas_set: &mut FontAtlasSet,
@@ -229,15 +235,15 @@ impl ConsoleTextPipeline {
         self.glyph_info.clear();
         // NOTE: This originally had an iter_many over the contents of the text node's span children.
         // We don't use children so no need to do that.
-        for settings in q_settings {
+        for text_font in q_font {
             let mut section_info = GlyphSectionInfo::new(
-                settings.text_font.font.id(),
-                settings.text_font.font_smoothing,
-                settings.text_font.font_size,
+                text_font.font.id(),
+                text_font.font_smoothing,
+                text_font.font_size,
                 0.0,
                 0.0,
                 0.0,
-                settings.text_font.weight.clamp().0,
+                text_font.weight.clamp().0,
             );
 
             if let Some((id, _)) = self.map_handle_to_font_id.get(&section_info.id)
@@ -455,6 +461,7 @@ pub fn measure_console_text_system(
             Ref<ComputedUiRenderTargetInfo>,
             &ComputedNode,
             Ref<FontHinting>,
+            &TextFont,
             &ConsoleUiSettings,
             &LineHeight,
             &ConsoleBuffer,
@@ -476,6 +483,7 @@ pub fn measure_console_text_system(
         computed_target,
         computed_node,
         hinting,
+        text_font,
         settings,
         line_height,
         buffer,
@@ -503,6 +511,7 @@ pub fn measure_console_text_system(
             &layout,
             computed.as_mut(),
             &mut font_system,
+            text_font,
             settings,
             line_height,
             buffer,
@@ -542,7 +551,7 @@ pub fn update_console_text_layout(
         &mut ConsoleBufferFlags,
         &mut ComputedConsoleTextBlock,
     )>,
-    settings: Query<&ConsoleUiSettings>,
+    text_font: Query<&TextFont>,
     mut font_system: ResMut<CosmicFontSystem>,
     mut font_atlas_set: ResMut<FontAtlasSet>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
@@ -566,7 +575,7 @@ pub fn update_console_text_layout(
                 &mut layout_info,
                 &mut computed,
                 physical_node_size,
-                settings,
+                text_font,
                 &mut font_system,
                 scale_factor,
                 &mut font_atlas_set,

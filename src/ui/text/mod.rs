@@ -8,7 +8,7 @@ use systems::*;
 
 pub mod prelude {
     pub use super::data::*;
-    pub use super::systems::ConsoleTextPipeline;
+    pub(crate) use super::systems::*;
 }
 
 pub fn plugin(app: &mut App) {

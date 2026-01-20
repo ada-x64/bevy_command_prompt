@@ -3,7 +3,7 @@ use bevy::{
     ecs::system::SystemId,
     input::{
         keyboard::{Key, KeyboardInput},
-        mouse::{AccumulatedMouseScroll, MouseButtonInput},
+        mouse::MouseButtonInput,
     },
     platform::collections::HashMap,
 };
@@ -55,10 +55,10 @@ impl ConsoleActionSystemInput {
         })
     }
 
-    pub fn matched_scroll(&self) -> Option<&AccumulatedMouseScroll> {
+    pub fn matched_scroll(&self) -> Option<isize> {
         self.matched_input.iter().find_map(|input| {
             if let MatchedInput::Scroll(s) = input {
-                Some(s)
+                Some(*s)
             } else {
                 None
             }
