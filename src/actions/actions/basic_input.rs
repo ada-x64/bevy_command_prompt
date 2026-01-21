@@ -86,8 +86,8 @@ fn on_scroll(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
 
 pub fn scroll_line(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
     let delta = match input.0.matched_logical_keys().find(|k| **k != Key::Control) {
-        Some(Key::ArrowUp) => -1,
-        Some(Key::ArrowDown) => 1,
+        Some(Key::ArrowUp) => 1,
+        Some(Key::ArrowDown) => -1,
         _ => unreachable!(),
     };
     commands.write_message(ConsoleViewMsg::scroll(delta, input.console_id));

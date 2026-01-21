@@ -17,7 +17,7 @@ use bevy::{
         stack_z_offsets,
     },
 };
-use cosmic_text::{Attrs, Family, Metrics, Shaping, Wrap};
+use cosmic_text::{Attrs, AttrsList, BufferLine, Family, LineIter, Metrics, Shaping, Wrap};
 
 #[derive(Debug)]
 pub struct GlyphSectionInfo {
@@ -95,12 +95,6 @@ impl ConsoleTextPipeline {
             fonts,
         );
 
-        // Map text sections to cosmic-text spans, and ignore sections with negative or zero fontsizes,
-        // since they cannot be rendered by cosmic-text.
-        //
-        // The section index is stored in the metadata of the spans, and could be used
-        // to look up the section the span came from and is not used internally
-        // in cosmic-text.
         let attrs = get_attrs(
             0,
             text_font,
@@ -125,26 +119,42 @@ impl ConsoleTextPipeline {
         // Parsing happens here.
         // TODO: Further split these into stylized spans.
         // ANSI text should be escaped into subspans with colors &c
-        // TODO: This should be rendered into a cosmic buffer first
+        // Styling will affect the number of characters displayed, so it needs to happen
+        // _before_ populating the cosmic_buffer.
+        cosmic_buffer.lines.clear();
+        let view_range = view.range / 2; // TEMP
         let input_size = prompt.lines().count() - 1 + console.input.lines().count();
-        let mut lines: Vec<String> = buffer
+        let buffer = buffer
             .as_lines()
-            .iter()
+            .into_iter()
             .rev()
             .skip(view.start.saturating_sub(input_size))
-            .take(view.range)
-            .map(|vec| vec.iter().cloned().collect::<String>() + "\n")
-            .rev()
-            .collect();
-        lines.push(format!("{}{}", prompt.0, console.input));
+            .take(view_range)
+            .map(|v| v.into_iter().collect::<String>())
+            .collect::<Vec<String>>();
 
-        cosmic_buffer.set_rich_text(
-            font_system,
-            lines.iter().map(|s| (s.as_str(), attrs.clone())),
-            &Attrs::new(),
-            Shaping::Advanced,
-            None,
-        );
+        let mut count = 0;
+        for (i, raw_str) in buffer.iter().enumerate() {
+            // todo: cache
+            for (range, ending) in LineIter::new(raw_str) {
+                cosmic_buffer.lines.push(BufferLine::new(
+                    &raw_str[range],
+                    ending,
+                    AttrsList::new(&attrs),
+                    Shaping::Advanced,
+                ));
+                let layout_lines = cosmic_buffer.line_layout(font_system, i);
+                count += layout_lines.map(|v| v.len()).unwrap_or_default();
+                if count >= view_range {
+                    break;
+                }
+                debug!(count, view_range, raw_str);
+            }
+            if count >= view_range {
+                break;
+            }
+        }
+        cosmic_buffer.lines.reverse();
 
         // Workaround for alignment not working for unbounded text.
         // See https://github.com/pop-os/cosmic-text/issues/343
