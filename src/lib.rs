@@ -30,6 +30,7 @@ impl Plugin for ConsolePlugin {
             (
                 (
                     handle_input.run_if(resource_exists::<InputFocus>),
+                    update_console_input_text,
                     clear_action_queue,
                     clear_write_queue,
                     clear_view_queue,

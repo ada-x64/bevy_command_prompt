@@ -43,29 +43,22 @@ impl ConsoleBufferView {
 
     pub(crate) fn resize(self, container_height: f32, line_height: f32) -> Self {
         let range = (container_height / line_height) as usize;
-        info!(container_height, line_height, range);
+        debug!(container_height, line_height, range);
         ConsoleBufferView {
             start: 0,
             range,
             ..self
         }
     }
-    pub(crate) fn scroll(
-        self,
-        value: isize,
-        buffer: &ConsoleBuffer,
-        prompt: &ConsolePrompt,
-        console: &Console,
-    ) -> Self {
+    pub(crate) fn scroll(self, value: isize, buffer: &ConsoleBuffer) -> Self {
         let buffer_size = buffer.line_count();
         if buffer_size <= self.range {
             return self;
         }
-        let input_lines = prompt.lines().count() - 1 + console.input.lines().count();
         let start = self
             .start
             .saturating_add_signed(value)
-            .min(buffer_size + input_lines - self.range);
+            .min(buffer_size - self.range);
         Self { start, ..self }
     }
 }

@@ -73,17 +73,18 @@ pub fn clear_action_queue(mut reader: MessageReader<ConsoleActionMsg>, mut comma
 
 pub fn clear_write_queue(
     mut reader: MessageReader<ConsoleWriteMsg>,
-    mut buffer_q: Query<&mut ConsoleBuffer>,
+    mut buffer_q: Query<(&mut ConsoleBuffer, &mut ConsoleInputText)>,
 ) {
     for item in reader.read() {
-        let mut buffer = c!(buffer_q.get_mut(item.console_id));
+        let (mut buffer, mut input) = c!(buffer_q.get_mut(item.console_id));
         c!(buffer.write(&item.message));
+        input.anchor = buffer.reset_write_anchor();
     }
 }
 
 pub fn clear_view_queue(
     mut reader: MessageReader<ConsoleViewMsg>,
-    mut query: Query<(&ConsoleBuffer, &ConsoleBufferView, &ConsolePrompt, &Console)>,
+    mut query: Query<(&ConsoleBuffer, &ConsoleBufferView)>,
     mut commands: Commands,
 ) {
     // collect for multiple iteration
@@ -96,13 +97,10 @@ pub fn clear_view_queue(
         accum
     });
     for console_id in ids {
-        let (buffer, view, prompt, console) = c!(query.get_mut(console_id));
-        let new_view = reader.iter().fold(*view, |view, msg| {
-            info!(?view, ?msg, ?buffer);
-            match msg.action {
-                ConsoleViewAction::Scroll(ydelta) => view.scroll(ydelta, buffer, prompt, console),
-                ConsoleViewAction::JumpToBottom => view.jump_to_bottom(),
-            }
+        let (buffer, view) = c!(query.get_mut(console_id));
+        let new_view = reader.iter().fold(*view, |view, msg| match msg.action {
+            ConsoleViewAction::Scroll(ydelta) => view.scroll(ydelta, buffer),
+            ConsoleViewAction::JumpToBottom => view.jump_to_bottom(),
         });
         commands.entity(console_id).insert(new_view);
     }

@@ -14,7 +14,7 @@ pub mod prelude {
 pub fn plugin(app: &mut App) {
     app.add_systems(
         PostUpdate,
-        ((measure_console_text_system, update_console_text_layout)
+        ((update_buffer, update_console_text_layout)
             .after(bevy::text::free_unused_font_atlases_system)
             .before(bevy::asset::AssetEventSystems)
             // these are separate entities.

@@ -7,11 +7,10 @@ use bevy::{
     platform::collections::HashMap,
     render::{Extract, sync_world::TemporaryRenderEntity},
     text::{
-        CosmicBuffer, CosmicFontSystem, FontAtlasKey, FontAtlasSet, FontFaceInfo, FontSmoothing,
-        LineHeight, PositionedGlyph, RunGeometry, SwashCache, TextBounds, TextLayoutInfo,
-        TextMeasureInfo, add_glyph_to_atlas, get_glyph_atlas_info, load_font_to_fontdb,
+        CosmicFontSystem, FontAtlasKey, FontAtlasSet, FontFaceInfo, FontSmoothing, LineHeight,
+        PositionedGlyph, RunGeometry, SwashCache, TextBounds, TextLayoutInfo, add_glyph_to_atlas,
+        get_glyph_atlas_info, load_font_to_fontdb,
     },
-    ui::{ContentSize, FixedMeasure, NodeMeasure},
     ui_render::{
         ExtractedGlyph, ExtractedUiItem, ExtractedUiNode, ExtractedUiNodes, UiCameraMap,
         stack_z_offsets,
@@ -75,8 +74,6 @@ impl ConsoleTextPipeline {
         line_height: &LineHeight,
         view: &ConsoleBufferView,
         buffer: &ConsoleBuffer,
-        prompt: &ConsolePrompt,
-        console: &Console,
     ) -> Result<(), TextError> {
         computed.needs_rerender = false;
 
@@ -122,19 +119,19 @@ impl ConsoleTextPipeline {
         // Styling will affect the number of characters displayed, so it needs to happen
         // _before_ populating the cosmic_buffer.
         cosmic_buffer.lines.clear();
-        let view_range = view.range / 2; // TEMP
-        let input_size = prompt.lines().count() - 1 + console.input.lines().count();
+        cosmic_buffer.set_size(font_system, bounds.width, bounds.height);
+        let view_range = view.range; // TEMP
         let buffer = buffer
             .as_lines()
             .into_iter()
             .rev()
-            .skip(view.start.saturating_sub(input_size))
+            .skip(view.start)
             .take(view_range)
             .map(|v| v.into_iter().collect::<String>())
             .collect::<Vec<String>>();
 
         let mut count = 0;
-        for (i, raw_str) in buffer.iter().enumerate() {
+        for (i, raw_str) in buffer.iter().rev().enumerate() {
             // todo: cache
             for (range, ending) in LineIter::new(raw_str) {
                 cosmic_buffer.lines.push(BufferLine::new(
@@ -148,88 +145,78 @@ impl ConsoleTextPipeline {
                 if count >= view_range {
                     break;
                 }
-                debug!(count, view_range, raw_str);
+                // debug!(count, view_range, raw_str);
             }
             if count >= view_range {
                 break;
             }
         }
-        cosmic_buffer.lines.reverse();
-
-        // Workaround for alignment not working for unbounded text.
-        // See https://github.com/pop-os/cosmic-text/issues/343
-        let width = bounds
-            .width
-            .is_none()
-            .then(|| buffer_dimensions(cosmic_buffer).x)
-            .or(bounds.width);
-        cosmic_buffer.set_size(font_system, width, bounds.height);
-
         Ok(())
     }
 
-    /// Queues text for measurement
-    ///
-    /// Produces a [`TextMeasureInfo`] which can be used by a layout system
-    /// to measure the text area on demand.
-    pub fn create_text_measure(
-        &mut self,
-        entity: Entity,
-        fonts: &Assets<Font>,
-        scale_factor: f64,
-        layout: &ConsoleTextLayout,
-        computed: &mut ComputedConsoleTextBlock,
-        font_system: &mut CosmicFontSystem,
-        text_font: &TextFont,
-        settings: &ConsoleUiSettings,
-        line_height: &LineHeight,
-        buffer: &ConsoleBuffer,
-        view: &ConsoleBufferView,
-        prompt: &ConsolePrompt,
-        console: &Console,
-    ) -> Result<TextMeasureInfo, TextError> {
-        const MIN_WIDTH_CONTENT_BOUNDS: TextBounds = TextBounds::new_horizontal(0.0);
+    // /// Queues text for measurement
+    // ///
+    // /// Produces a [`TextMeasureInfo`] which can be used by a layout system
+    // /// to measure the text area on demand.
+    // pub fn _create_text_measure(
+    //     &mut self,
+    //     entity: Entity,
+    //     fonts: &Assets<Font>,
+    //     scale_factor: f64,
+    //     layout: &ConsoleTextLayout,
+    //     computed: &mut ComputedConsoleTextBlock,
+    //     font_system: &mut CosmicFontSystem,
+    //     text_font: &TextFont,
+    //     settings: &ConsoleUiSettings,
+    //     line_height: &LineHeight,
+    //     buffer: &ConsoleBuffer,
+    //     view: &ConsoleBufferView,
+    //     prompt: &ConsolePrompt,
+    //     console: &Console,
+    // ) -> Result<TextMeasureInfo, TextError> {
+    //     const MIN_WIDTH_CONTENT_BOUNDS: TextBounds = TextBounds::new_horizontal(0.0);
 
-        // Clear this here at the focal point of measured text rendering to ensure the field's lifecycle has
-        // strong boundaries.
-        computed.needs_rerender = false;
+    //     // Clear this here at the focal point of measured text rendering to ensure the field's lifecycle has
+    //     // strong boundaries.
+    //     computed.needs_rerender = false;
 
-        self.update_buffer(
-            fonts,
-            layout.linebreak,
-            MIN_WIDTH_CONTENT_BOUNDS,
-            scale_factor,
-            computed,
-            font_system,
-            text_font,
-            settings,
-            line_height,
-            view,
-            buffer,
-            prompt,
-            console,
-        )?;
+    //     self.update_buffer(
+    //         fonts,
+    //         layout.linebreak,
+    //         MIN_WIDTH_CONTENT_BOUNDS,
+    //         scale_factor,
+    //         computed,
+    //         font_system,
+    //         text_font,
+    //         settings,
+    //         line_height,
+    //         view,
+    //         buffer,
+    //         prompt,
+    //         console,
+    //     )?;
 
-        let buffer = &mut computed.buffer;
-        let min_width_content_size = buffer_dimensions(buffer);
+    //     let buffer = &mut computed.buffer;
+    //     let min_width_content_size = buffer_dimensions(buffer);
 
-        let max_width_content_size = {
-            let font_system = &mut font_system.0;
-            buffer.set_size(font_system, None, None);
-            buffer_dimensions(buffer)
-        };
+    //     let max_width_content_size = {
+    //         let font_system = &mut font_system.0;
+    //         buffer.set_size(font_system, None, None);
+    //         buffer_dimensions(buffer)
+    //     };
 
-        Ok(TextMeasureInfo {
-            min: min_width_content_size,
-            max: max_width_content_size,
-            entity,
-        })
-    }
+    //     Ok(TextMeasureInfo {
+    //         min: min_width_content_size,
+    //         max: max_width_content_size,
+    //         entity,
+    //     })
+    // }
 
     pub fn update_layout_info(
         &mut self,
         layout_info: &mut TextLayoutInfo,
         computed: &mut ComputedConsoleTextBlock,
+        view: &ConsoleBufferView,
         bounds: TextBounds,
         q_font: Query<&TextFont>,
         font_system: &mut CosmicFontSystem,
@@ -273,23 +260,20 @@ impl ConsoleTextPipeline {
 
         let buffer = &mut computed.buffer;
 
-        // Workaround for alignment not working for unbounded text.
-        // See https://github.com/pop-os/cosmic-text/issues/343
-        let width = bounds
-            .width
-            .is_none()
-            .then(|| buffer_dimensions(buffer).x)
-            .or(bounds.width);
-        buffer.set_size(font_system, width, bounds.height);
+        buffer.set_size(font_system, bounds.width, bounds.height);
         let mut box_size = Vec2::ZERO;
 
-        let res = buffer.layout_runs().try_for_each(|run| {
+        let mut res: Result<(), TextError> = Ok(());
+        for run in buffer.layout_runs() {
+            if box_size.y >= view.range as f32 * run.line_height {
+                break;
+            }
             box_size.x = box_size.x.max(run.line_w);
             box_size.y += run.line_height;
             let mut current_section: Option<usize> = None;
             let mut start = 0.;
             let mut end = 0.;
-            let res = run
+            res = run
                 .glyphs
                 .iter()
                 .map(move |layout_glyph| (layout_glyph, run.line_y, run.line_i))
@@ -405,22 +389,12 @@ impl ConsoleTextPipeline {
                     underline_thickness: self.glyph_info[section].stroke_size,
                 });
             }
-            res
-        });
-
+        }
         res?;
+
         layout_info.size = box_size.ceil();
         Ok(())
     }
-}
-/// Calculate the size of the text area for the given buffer.
-fn buffer_dimensions(buffer: &CosmicBuffer) -> Vec2 {
-    let mut size = Vec2::ZERO;
-    for run in buffer.layout_runs() {
-        size.x = size.x.max(run.line_w);
-        size.y += run.line_height;
-    }
-    size.ceil()
 }
 
 /// Translates [`TextFont`] to [`Attrs`].
@@ -449,23 +423,11 @@ fn get_attrs<'a>(
         .color(cosmic_text::Color(color.to_linear().as_u32()))
 }
 
-/// Generates a new [`Measure`] for a text node on changes to its [`Text`] component.
-///
-/// A `Measure` is used by the UI's layout algorithm to determine the appropriate amount of space
-/// to provide for the text given the fonts, the text itself and the constraints of the layout.
-///
-/// * Measures are regenerated on changes to either [`ComputedTextBlock`] or [`ComputedUiRenderTargetInfo`].
-/// * Changes that only modify the colors of a `Text` do not require a new `Measure`. This system
-///   is only able to detect that a `Text` component has changed and will regenerate the `Measure` on
-///   color changes. This can be expensive, particularly for large blocks of text, and the [`bypass_change_detection`](bevy_ecs::change_detection::DetectChangesMut::bypass_change_detection)
-///   method should be called when only changing the `Text`'s colors.
-pub fn measure_console_text_system(
+pub fn update_buffer(
     fonts: Res<Assets<Font>>,
     mut text_query: Query<
         (
-            Entity,
             Ref<ConsoleTextLayout>,
-            &mut ContentSize,
             &mut ConsoleBufferFlags,
             &mut ComputedConsoleTextBlock,
             Ref<ComputedUiRenderTargetInfo>,
@@ -476,8 +438,6 @@ pub fn measure_console_text_system(
             &LineHeight,
             &ConsoleBuffer,
             &ConsoleBufferView,
-            &ConsolePrompt,
-            &Console,
         ),
         With<Node>,
     >,
@@ -485,9 +445,7 @@ pub fn measure_console_text_system(
     mut font_system: ResMut<CosmicFontSystem>,
 ) {
     for (
-        entity,
         layout,
-        mut content_size,
         mut text_flags,
         mut computed,
         computed_target,
@@ -498,8 +456,6 @@ pub fn measure_console_text_system(
         line_height,
         buffer,
         view,
-        prompt,
-        console,
     ) in &mut text_query
     {
         // Note: the ComputedTextBlock::needs_rerender bool is cleared in create_text_measure().
@@ -508,36 +464,39 @@ pub fn measure_console_text_system(
             < (computed_target.scale_factor() - computed_node.inverse_scale_factor.recip()).abs()
             || computed.needs_rerender
             || text_flags.needs_measure_fn
-            || content_size.is_added()
             || hinting.is_changed())
         {
             continue;
         }
 
-        match text_pipeline.create_text_measure(
-            entity,
-            fonts.as_ref(),
+        debug!("update buffer");
+        // Clear this here at the focal point of measured text rendering to ensure the field's lifecycle has
+        // strong boundaries.
+        computed.needs_rerender = false;
+
+        match text_pipeline.update_buffer(
+            &fonts,
+            layout.linebreak,
+            TextBounds {
+                width: Some(computed_node.size.x),
+                height: Some(computed_node.size.y),
+            },
             computed_target.scale_factor().into(),
-            &layout,
-            computed.as_mut(),
+            &mut computed,
             &mut font_system,
             text_font,
             settings,
             line_height,
-            buffer,
             view,
-            prompt,
-            console,
+            buffer,
         ) {
-            Ok(measure) => {
-                content_size.set(NodeMeasure::Fixed(FixedMeasure { size: measure.max }));
-
-                // Text measure func created successfully, so set `TextNodeFlags` to schedule a recompute
+            Ok(_) => {
                 text_flags.needs_measure_fn = false;
                 text_flags.needs_recompute = true;
             }
             Err(TextError::NoSuchFont) => {
-                // Try again next frame
+                // retry next frame
+                computed.needs_rerender = true;
                 text_flags.needs_measure_fn = true;
             }
             Err(
@@ -550,6 +509,39 @@ pub fn measure_console_text_system(
                 panic!("Fatal error when processing text: {e}.");
             }
         };
+
+        // match text_pipeline.create_text_measure(
+        //     entity,
+        //     fonts.as_ref(),
+        //     computed_target.scale_factor().into(),
+        //     &layout,
+        //     computed.as_mut(),
+        //     &mut font_system,
+        //     text_font,
+        //     settings,
+        //     line_height,
+        //     buffer,
+        //     view,
+        //     prompt,
+        //     console,
+        // ) {
+        //     Ok(measure) => {
+        //         // Text measure func created successfully, so set `TextNodeFlags` to schedule a recompute
+        //         text_flags.needs_recompute = true;
+        //     }
+        //     Err(TextError::NoSuchFont) => {
+        //         // Try again next frame
+        //     }
+        //     Err(
+        //         e @ (TextError::FailedToAddGlyph(_)
+        //         | TextError::FailedToGetGlyphImage(_)
+        //         | TextError::MissingAtlasLayout
+        //         | TextError::MissingAtlasTexture
+        //         | TextError::InconsistentAtlasState),
+        //     ) => {
+        //         panic!("Fatal error when processing text: {e}.");
+        //     }
+        // };
     }
 }
 pub fn update_console_text_layout(
@@ -557,6 +549,7 @@ pub fn update_console_text_layout(
     console_q: Query<(
         Ref<ComputedNode>,
         &ConsoleTextLayout,
+        &ConsoleBufferView,
         &mut TextLayoutInfo,
         &mut ConsoleBufferFlags,
         &mut ComputedConsoleTextBlock,
@@ -568,11 +561,9 @@ pub fn update_console_text_layout(
     mut textures: ResMut<Assets<Image>>,
     mut swash_cache: ResMut<SwashCache>,
 ) {
-    for (node, layout, mut layout_info, mut flags, mut computed) in console_q {
+    for (node, layout, view, mut layout_info, mut flags, mut computed) in console_q {
         if node.is_changed() || flags.needs_recompute {
-            if flags.needs_measure_fn {
-                continue;
-            }
+            debug!("update_console_text_layout");
             let scale_factor = node.inverse_scale_factor().recip().into();
             let physical_node_size = if layout.linebreak == LineBreak::NoWrap {
                 // With `NoWrap` set, no constraints are placed on the width of the text.
@@ -584,6 +575,7 @@ pub fn update_console_text_layout(
             match pipeline.update_layout_info(
                 &mut layout_info,
                 &mut computed,
+                view,
                 physical_node_size,
                 text_font,
                 &mut font_system,

@@ -5,7 +5,7 @@ use crate::prelude::*;
 // TODO: History gets a bit out of order.
 pub fn set_from_history(
     input: In<ConsoleActionSystemInput>,
-    mut q_console: Query<(&mut Console, &ConsoleHistory)>,
+    mut q_console: Query<(&mut ConsoleInputText, &ConsoleHistory)>,
     mut history_idx: Local<usize>,
     mut filtered_history: Local<Option<Vec<usize>>>,
     mut original_value: Local<Option<String>>,
@@ -27,9 +27,9 @@ pub fn set_from_history(
         _ => {}
     }
     if matches!(key, Key::ArrowUp | Key::ArrowDown) {
-        let (mut console, history) = q_console.get_mut(input.console_id).unwrap();
+        let (mut input_text, history) = q_console.get_mut(input.console_id).unwrap();
         if filtered_history.is_none() {
-            *original_value = Some(std::mem::take(&mut console.input));
+            *original_value = Some(std::mem::take(&mut input_text.text));
             let f = history
                 .iter()
                 .enumerate()
@@ -43,11 +43,12 @@ pub fn set_from_history(
         let ov = original_value.as_ref().unwrap();
         *history_idx = history_idx.saturating_add_signed(value).min(fh.len());
         if *history_idx == 0 {
-            console.input = ov.clone();
+            input_text.text = ov.clone();
         } else {
             let idx = fh[fh.len().saturating_sub(*history_idx + 1)];
-            console.input = history[idx].clone();
+            input_text.text = history[idx].clone();
         }
+        input_text.cursor = input_text.text.len();
     }
 }
 

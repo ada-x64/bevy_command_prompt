@@ -7,20 +7,17 @@ use bevy::{
 #[derive(Component, Debug, Reflect, Clone, Default)]
 #[require(
     Node,
-    bevy::ui::ContentSize,
     ConsoleUiSettings,
     ConsoleTextLayout,
     ConsoleBuffer,
     ConsoleBufferFlags,
     ConsolePrompt,
     ConsoleHistory,
+    ConsoleInputText,
     TextFont
 )]
 #[component(on_add=Self::on_add)]
-pub struct Console {
-    pub(crate) input: String,
-    pub(crate) cursor: usize,
-}
+pub struct Console;
 impl Console {
     pub(crate) fn on_add<'w>(mut world: DeferredWorld<'w>, ctx: HookContext) {
         let bundle = (
@@ -55,5 +52,25 @@ impl Console {
             message: trigger.event().clone(),
             console_id: trigger.entity,
         });
+    }
+}
+
+/// The console's input, excluding the prompt.
+#[derive(Component, Debug, Reflect, Default)]
+#[require(ConsoleBuffer)]
+pub struct ConsoleInputText {
+    pub(crate) text: String,
+    pub(crate) cursor: usize,
+    pub(crate) anchor: usize,
+}
+
+pub fn update_console_input_text(
+    q: Query<(&mut ConsoleBuffer, &ConsoleInputText, &ConsolePrompt), Changed<ConsoleInputText>>,
+) {
+    for (mut buffer, input, prompt) in q {
+        buffer.write_at(input.anchor, &prompt.0).unwrap();
+        buffer
+            .write_at(input.anchor + prompt.0.len(), &input.text)
+            .unwrap();
     }
 }
