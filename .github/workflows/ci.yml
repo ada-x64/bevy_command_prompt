@@ -1,0 +1,54 @@
+name: Cargo Build & Test
+
+on:
+  push:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_TERM_COLOR: always
+    strategy:
+      matrix:
+        target: [x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ matrix.target }}-ci-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install dependencies
+        shell: bash
+        run: >
+          sudo apt-get update;
+          sudo apt-get install -y --no-install-recommends
+          libasound2-dev
+          libudev-dev
+          libwayland-dev
+          ;
+
+      - name: Install rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly-2025-06-26
+          components: rustc-codegen-cranelift-preview,rustc-dev,llvm-tools-preview,clippy
+
+      - uses: jdx/mise-action@v3
+        with:
+          log_level: info
+
+      - run: "rustup component list --installed"
+      - run: "RUST_BACKTRACE=1 RUST_LOG=app=debug,tfw=debug MISE_ENV=ci mise check ::: test"

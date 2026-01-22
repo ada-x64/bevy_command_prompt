@@ -1,3 +1,5 @@
+//! _Actions_ are events that alter the command prompt in some way. For events that modify the world, see [commands.](super::commands)
+
 use crate::prelude::*;
 
 #[allow(clippy::module_inception)]

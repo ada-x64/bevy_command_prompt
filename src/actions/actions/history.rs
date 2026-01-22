@@ -2,15 +2,19 @@ use bevy::input::keyboard::Key;
 
 use crate::prelude::*;
 
-/// Sets the
+// TODO: History gets a bit out of order.
 pub fn set_from_history(
-    input: In<ConsoleActionInput>,
-    mut q_console: Query<&mut Console>,
+    input: In<ConsoleActionSystemInput>,
+    mut q_console: Query<(&mut ConsoleInputText, &ConsoleHistory)>,
     mut history_idx: Local<usize>,
     mut filtered_history: Local<Option<Vec<usize>>>,
     mut original_value: Local<Option<String>>,
 ) {
-    let key = input.matched_keys.first().unwrap();
+    let key = input.matched_logical_keys().next();
+    if key.is_none() {
+        return;
+    }
+    let key = key.unwrap();
     let mut value = 0;
     match key {
         Key::ArrowUp => value = 1,
@@ -23,11 +27,10 @@ pub fn set_from_history(
         _ => {}
     }
     if matches!(key, Key::ArrowUp | Key::ArrowDown) {
-        let mut console = q_console.get_mut(input.console_id).unwrap();
+        let (mut input_text, history) = q_console.get_mut(input.console_id).unwrap();
         if filtered_history.is_none() {
-            *original_value = Some(std::mem::take(&mut console.input));
-            let f = console
-                .history
+            *original_value = Some(std::mem::take(&mut input_text.text));
+            let f = history
                 .iter()
                 .enumerate()
                 .filter_map(|(i, s)| s.starts_with(original_value.as_ref().unwrap()).then_some(i))
@@ -40,17 +43,20 @@ pub fn set_from_history(
         let ov = original_value.as_ref().unwrap();
         *history_idx = history_idx.saturating_add_signed(value).min(fh.len());
         if *history_idx == 0 {
-            console.input = ov.clone();
+            input_text.text = ov.clone();
         } else {
             let idx = fh[fh.len().saturating_sub(*history_idx + 1)];
-            console.input = console.history[idx].clone();
+            input_text.text = history[idx].clone();
         }
+        let end = input_text.text.len();
+        input_text.set_cursor(end);
     }
 }
 
 pub fn plugin(app: &mut App) {
     app.register_console_action(
-        ConsoleAction::new([Key::ArrowUp, Key::ArrowDown, Key::Enter]),
+        ConsoleActionKeybind::new([Key::ArrowUp, Key::ArrowDown, Key::Enter])
+            .without_modifiers([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
         set_from_history,
     );
 }
