@@ -9,7 +9,7 @@ pub fn delete_char(
     if let Ok(mut input) = console_q.get_mut(input.console_id) {
         let popped = input.text.pop();
         if let Some(popped) = popped {
-            input.cursor -= popped.len_utf8();
+            input.move_cursor(-(popped.len_utf8() as isize));
         }
     } else {
         error!(
@@ -25,7 +25,7 @@ pub fn delete_word(
     if let Ok(mut input) = console_q.get_mut(input.console_id) {
         let last_ws = input.text.rfind(char::is_whitespace).unwrap_or_default();
         input.text.truncate(last_ws);
-        input.cursor = last_ws;
+        input.set_cursor(last_ws);
     } else {
         error!(
             "Could not delete word from console with id {}",
@@ -39,19 +39,19 @@ pub fn write_char(
     mut commands: Commands,
 ) {
     if let Ok(mut input_text) = console_q.get_mut(input.console_id) {
-        let pos = input_text.cursor;
+        let pos = input_text.cursor();
         for key in input.matched_logical_keys() {
             match key {
                 Key::Character(c) => {
                     input_text.text.insert_str(pos, c.as_str());
-                    input_text.cursor += c.len();
+                    input_text.move_cursor(c.len() as isize);
                 }
                 Key::Space => {
                     input_text.text.insert(pos, ' ');
-                    input_text.cursor += 1;
+                    input_text.move_cursor(1);
                 }
                 Key::Enter => {
-                    if input_text.cursor == input_text.text.len() {
+                    if input_text.cursor() == input_text.text.len() {
                         input_text.text.insert(pos, '\n');
                     }
                     input_text.text.push('\n');
@@ -88,7 +88,7 @@ pub fn submit(
             });
         }
         let history_value = std::mem::take(&mut input_text.text);
-        input_text.cursor = 0;
+        input_text.set_cursor(0);
         history.push(history_value);
     } else {
         error!("Could not submit from console with id {}", input.console_id);
@@ -98,6 +98,16 @@ pub fn submit(
 fn on_scroll(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
     let scroll = r!(input.matched_scroll());
     commands.write_message(ConsoleViewMsg::scroll(scroll, input.console_id));
+}
+
+fn clear(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
+    commands.run_system_cached_with(clear_buffer, input.console_id);
+}
+
+fn clear_input(input: In<ConsoleActionSystemInput>, mut query: Query<&mut ConsoleInputText>) {
+    let mut input = query.get_mut(input.console_id).unwrap();
+    input.text.clear();
+    input.set_cursor(0);
 }
 
 pub fn scroll_line(input: In<ConsoleActionSystemInput>, mut commands: Commands) {
@@ -130,5 +140,15 @@ pub(crate) fn plugin(app: &mut App) {
         ConsoleActionKeybind::new([Key::ArrowUp, Key::ArrowDown])
             .with_modifiers([KeyCode::ShiftLeft, KeyCode::ShiftRight]),
         scroll_line,
+    );
+    app.register_console_action(
+        ConsoleActionKeybind::new(Key::Character("l".into()))
+            .with_modifiers([KeyCode::ControlLeft, KeyCode::ControlRight]),
+        clear,
+    );
+    app.register_console_action(
+        ConsoleActionKeybind::new(Key::Character("c".into()))
+            .with_modifiers([KeyCode::ControlLeft, KeyCode::ControlRight]),
+        clear_input,
     );
 }

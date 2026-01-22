@@ -60,8 +60,22 @@ impl Console {
 #[require(ConsoleBuffer)]
 pub struct ConsoleInputText {
     pub(crate) text: String,
-    pub(crate) cursor: usize,
+    cursor: usize,
     pub(crate) anchor: usize,
+}
+impl ConsoleInputText {
+    pub fn set_cursor(&mut self, pos: usize) {
+        self.cursor = self.text.ceil_char_boundary(pos);
+    }
+    pub fn move_cursor(&mut self, pos: isize) -> usize {
+        self.cursor = self
+            .text
+            .ceil_char_boundary(self.cursor.saturating_add_signed(pos));
+        self.cursor
+    }
+    pub fn cursor(&self) -> usize {
+        self.text.ceil_char_boundary(self.cursor)
+    }
 }
 
 pub fn update_console_input_text(

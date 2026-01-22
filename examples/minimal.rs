@@ -22,7 +22,7 @@ pub fn main() {
                 height: Val::Vh(100.),
                 ..Default::default()
             },
-            children![Console::default()],
+            children![Console],
         ));
     });
     app.run();

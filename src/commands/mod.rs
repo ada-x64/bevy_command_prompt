@@ -11,6 +11,7 @@ mod events;
 
 pub mod prelude {
     pub use super::app_ext::*;
+    pub use super::commands::prelude::*;
     pub use super::data::*;
 }
 

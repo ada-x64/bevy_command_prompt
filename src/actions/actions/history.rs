@@ -48,7 +48,8 @@ pub fn set_from_history(
             let idx = fh[fh.len().saturating_sub(*history_idx + 1)];
             input_text.text = history[idx].clone();
         }
-        input_text.cursor = input_text.text.len();
+        let end = input_text.text.len();
+        input_text.set_cursor(end);
     }
 }
 

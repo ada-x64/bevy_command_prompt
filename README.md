@@ -20,14 +20,14 @@ This project would not exist without inspiration from the following sources:
 - [ ] Basic built-in commands
   - [x] `clear` - clears the console
   - [x] `show` - list available commands, registered components, active entities, resources, assets, etc
-  - [ ] `less` - basic pager
 - [ ] Command completion
   - [ ] Command names
   - [ ] Command parameters (when possible choices are enumerated)
-- [ ] Basic keyboard shortcuts (`^C`, `^L`)
+- [x] Basic keyboard shortcuts (`^C`, `^L`)
 - [x] Customizable UI
 - [x] Custom actions
 - [x] Virtual scrolling
+- [ ] Input cursor
 
 ### Stretch goals
 
