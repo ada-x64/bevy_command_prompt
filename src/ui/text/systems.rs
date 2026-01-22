@@ -131,7 +131,7 @@ impl ConsoleTextPipeline {
             .collect::<Vec<String>>();
 
         let mut count = 0;
-        for (i, raw_str) in buffer.iter().rev().enumerate() {
+        for (i, raw_str) in buffer.iter().enumerate() {
             // todo: cache
             for (range, ending) in LineIter::new(raw_str) {
                 cosmic_buffer.lines.push(BufferLine::new(
@@ -225,6 +225,7 @@ impl ConsoleTextPipeline {
         texture_atlases: &mut Assets<TextureAtlasLayout>,
         textures: &mut Assets<Image>,
         swash_cache: &mut SwashCache,
+        node: &ComputedNode,
     ) -> Result<(), TextError> {
         layout_info.glyphs.clear();
         layout_info.run_geometry.clear();
@@ -263,13 +264,14 @@ impl ConsoleTextPipeline {
         buffer.set_size(font_system, bounds.width, bounds.height);
         let mut box_size = Vec2::ZERO;
 
+        // Buffer is stored bottom-up
         let mut res: Result<(), TextError> = Ok(());
         for run in buffer.layout_runs() {
+            box_size.x = box_size.x.max(run.line_w);
+            box_size.y += run.line_height;
             if box_size.y >= view.range as f32 * run.line_height {
                 break;
             }
-            box_size.x = box_size.x.max(run.line_w);
-            box_size.y += run.line_height;
             let mut current_section: Option<usize> = None;
             let mut start = 0.;
             let mut end = 0.;
@@ -360,9 +362,10 @@ impl ConsoleTextPipeline {
 
                     // offset by half the size because the origin is center
                     let x = glyph_size.x as f32 / 2.0 + left + physical_glyph.x as f32;
-                    let y =
-                        line_y.round() + physical_glyph.y as f32 - top + glyph_size.y as f32 / 2.0;
+                    let y = (node.size.y.round() - line_y.round()) + physical_glyph.y as f32 - top
+                        + glyph_size.y as f32 / 2.0;
 
+                    // invert position - console grows from bottom to top
                     let position = Vec2::new(x, y);
 
                     let pos_glyph = PositionedGlyph {
@@ -584,6 +587,7 @@ pub fn update_console_text_layout(
                 &mut texture_atlases,
                 &mut textures,
                 &mut swash_cache,
+                &node,
             ) {
                 Ok(()) => {
                     layout_info.scale_factor = scale_factor as f32;
