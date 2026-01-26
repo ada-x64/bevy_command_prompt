@@ -9,6 +9,9 @@ use bevy::{
     text::LineHeight,
 };
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConsoleSystems;
+
 pub fn handle_input(
     key_code_input: Res<ButtonInput<KeyCode>>,
     key_input: Res<ButtonInput<Key>>,
@@ -21,6 +24,7 @@ pub fn handle_input(
     mut q_console: Query<(&mut ComputedConsoleTextBlock, &LineHeight, &TextFont)>,
     mut commands: Commands,
 ) {
+    debug!("handle_input");
     if (!keyboard_events.is_empty() || !mouse_events.is_empty() || !wheel_events.is_empty())
         && let Some(console_id) = focus.0
         && let Ok((mut block, lineheight, font)) = q_console.get_mut(console_id)
@@ -67,6 +71,7 @@ pub fn handle_input(
 
 pub fn clear_action_queue(mut reader: MessageReader<ConsoleActionMsg>, mut commands: Commands) {
     for item in reader.read() {
+        debug!(?item);
         commands.run_system_with(item.system, item.input.clone());
     }
 }

@@ -42,11 +42,6 @@ impl ConsoleViewMsg {
     }
 }
 
-#[derive(Message, Clone, Debug, Reflect)]
-pub struct ConsoleSubmitMsg {
-    pub console_id: Entity,
-}
-
 #[derive(Message, Debug, Clone)]
 pub struct ConsoleWriteMsg {
     pub console_id: Entity,

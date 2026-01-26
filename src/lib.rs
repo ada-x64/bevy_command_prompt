@@ -1,6 +1,8 @@
 mod actions;
 mod commands;
 mod systems;
+#[cfg(test)]
+mod test_harness;
 mod ui;
 
 pub mod prelude {
@@ -36,8 +38,9 @@ impl Plugin for ConsolePlugin {
                     clear_view_queue,
                 )
                     .chain()
-                    .before(ui_layout_system),
-                on_resize.after(ui_layout_system),
+                    .before(ui_layout_system)
+                    .in_set(ConsoleSystems),
+                on_resize.after(ui_layout_system).in_set(ConsoleSystems),
             ),
         );
     }
