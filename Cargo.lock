@@ -447,7 +447,7 @@ dependencies = [
 [[package]]
 name = "bevy-test-harness"
 version = "0.1.0"
-source = "git+https://github.com/ada-x64/bevy-test-harness#49329628cc5166f90ca5ed597b7c828a227f70a7"
+source = "git+https://github.com/ada-x64/bevy-test-harness#18522d9a4987530d7c0d5c8c35ef0da48f97d375"
 dependencies = [
  "bevy",
 ]

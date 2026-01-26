@@ -1,6 +1,6 @@
 use bevy::{
-    ecs::schedule::ExecutorKind, image::TextureAtlasPlugin, input::InputPlugin,
-    input_focus::InputFocus, text::TextPlugin, ui::UiPlugin,
+    image::TextureAtlasPlugin, input::InputPlugin, input_focus::InputFocus, text::TextPlugin,
+    ui::UiPlugin,
 };
 use bevy_test_harness::{TestRunnerPlugin, TestRunnerTimeout};
 
@@ -23,12 +23,6 @@ pub fn plugin(app: &mut App) {
     ));
     app.add_systems(Startup, setup);
     app.insert_resource(TestRunnerTimeout(1.));
-    app.get_schedule_mut(Update)
-        .unwrap()
-        .set_executor_kind(ExecutorKind::SingleThreaded);
-    app.get_schedule_mut(PostUpdate)
-        .unwrap()
-        .set_executor_kind(ExecutorKind::SingleThreaded);
 }
 
 fn setup(mut commands: Commands, mut focus: ResMut<InputFocus>) {
