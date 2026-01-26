@@ -35,8 +35,6 @@ pub fn set_from_history(
                 .filter_map(|(i, s)| s.starts_with(original_value.as_ref().unwrap()).then_some(i))
                 .collect::<Vec<_>>();
             *filtered_history = Some(f);
-            debug!("Setting filtered_history {filtered_history:?}");
-            debug!("Setting original_value {original_value:?}");
         }
         let fh = filtered_history.as_ref().unwrap();
         let ov = original_value.as_ref().unwrap();
@@ -102,8 +100,6 @@ mod test {
     fn test_history() {
         let mut app = App::new();
         app.add_plugins(test_harness::plugin);
-        app.add_systems(Update, (|| info!("update")).before(ConsoleSystems));
-        app.add_systems(PostUpdate, (|| info!("postupdate")).before(ConsoleSystems));
         for step in 0..3 {
             app.add_step(
                 step,
@@ -122,7 +118,6 @@ mod test {
                             Key::Enter,
                             ButtonState::Released,
                         ));
-                        info!(input.text, ?history);
                         next_step.set(Step(step + 1));
                     } else {
                         error!("Failed to get console");

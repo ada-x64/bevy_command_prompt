@@ -145,7 +145,6 @@ impl ConsoleTextPipeline {
                 if count >= view_range {
                     break;
                 }
-                // debug!(count, view_range, raw_str);
             }
             if count >= view_range {
                 break;
@@ -472,7 +471,6 @@ pub fn update_buffer(
             continue;
         }
 
-        debug!("update buffer");
         // Clear this here at the focal point of measured text rendering to ensure the field's lifecycle has
         // strong boundaries.
         computed.needs_rerender = false;
@@ -566,7 +564,6 @@ pub fn update_console_text_layout(
 ) {
     for (node, layout, view, mut layout_info, mut flags, mut computed) in console_q {
         if node.is_changed() || flags.needs_recompute {
-            debug!("update_console_text_layout");
             let scale_factor = node.inverse_scale_factor().recip().into();
             let physical_node_size = if layout.linebreak == LineBreak::NoWrap {
                 // With `NoWrap` set, no constraints are placed on the width of the text.
