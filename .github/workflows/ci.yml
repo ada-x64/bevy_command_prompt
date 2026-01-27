@@ -31,6 +31,9 @@ jobs:
                       target/
                   key: ${{ matrix.target }}-ci-${{ hashFiles('**/Cargo.toml') }}
 
+            - name: Run sccache-cache
+              uses: mozilla-actions/sccache-action@v0.0.9
+
             - name: Install dependencies
               shell: bash
               run: >
