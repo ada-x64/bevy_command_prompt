@@ -2,8 +2,9 @@
 _.source = ".config/env.sh"
 
 [tools]
+"cargo:cargo-binstall" = "latest"
 "mold" = "latest"
-act = "latest"
+sccache="latest"
 
 [tools.rust]
 # keep in sync with bevy_cli
@@ -42,7 +43,6 @@ usage = """
     flag "--fix"
 """
 run = """
-RUSTC_WRAPPER="sccache"
 CARGO=$(rustup which --toolchain nightly-2025-12-11 cargo) bevy_lint
 FIX=${usage_fix:+--fix}
 bevy_lint --locked --all-features --target-dir=target/bevy_lint \
@@ -56,7 +56,6 @@ usage = """
     flag "--fix"
 """
 run = """
-RUSTC_WRAPPER="sccache"
 FIX=${usage_fix:+--fix}
 cargo --color=always clippy --locked --all-features --target-dir=target/clippy \
     $FIX -p ${usage_pkg}
@@ -112,7 +111,6 @@ run = """
 
 [tasks.build]
 description = "Cargo build."
-env = { "RUSTC_WRAPPER" = "sccache" }
 tools = { "sccache" = "latest" }
 usage = """
     arg "[args]" help="Args passed to cargo build. Run `cargo build --help` for more info." var=#true
@@ -123,7 +121,6 @@ cargo build ${usage_args}
 
 [tasks.play]
 description = "Cargo run."
-env = { "RUSTC_WRAPPER" = "sccache" }
 tools = { "sccache" = "latest" }
 usage = """
     arg "[args]" help="Args passed to cargo run. Run `cargo run --help` for more info." var=#true

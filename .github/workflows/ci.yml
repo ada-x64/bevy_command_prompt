@@ -5,12 +5,13 @@ on:
 
 env:
     CARGO_TERM_COLOR: always
+    RUST_BACKTRACE: 1
+    RUST_LOG: app=debug,tfw=debug
+    MISE_ENV: ci
 
 jobs:
     build_and_test:
         runs-on: ubuntu-24.04
-        env:
-            CARGO_TERM_COLOR: always
         strategy:
             matrix:
                 target: [x86_64-pc-windows-msvc, x86_64-unknown-linux-gnu]
@@ -46,9 +47,11 @@ jobs:
                   toolchain: nightly-2025-12-11
                   components: rustc-codegen-cranelift-preview,rustc-dev,llvm-tools-preview,clippy
 
+            - uses: cargo-bins/cargo-binstall@main
+
             - uses: jdx/mise-action@v3
               with:
                   log_level: info
 
-            - run: "rustup component list --installed"
-            - run: "RUST_BACKTRACE=1 RUST_LOG=app=debug,tfw=debug MISE_ENV=ci mise check ::: test"
+            - run: "mise check"
+            - run: "mise test"
