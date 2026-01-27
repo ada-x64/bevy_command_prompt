@@ -53,5 +53,7 @@ jobs:
               with:
                   log_level: info
 
-            - run: "mise check"
+            - run: "mise build"
+            - run: "mise clippy"
+            - run: "mise bevy_lint"
             - run: "mise test"
