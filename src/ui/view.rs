@@ -43,7 +43,6 @@ impl ConsoleBufferView {
 
     pub(crate) fn resize(self, container_height: f32, line_height: f32) -> Self {
         let range = (container_height / line_height) as usize;
-        debug!(container_height, line_height, range);
         ConsoleBufferView {
             start: 0,
             range,

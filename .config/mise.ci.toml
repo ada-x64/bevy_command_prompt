@@ -3,7 +3,7 @@
 hide = true
 depends = ["install_bevy_lint"]
 usage = """
-    arg "<pkg>" var=#true default=app
+    arg "<pkg>" var=#true default=bevy_command_prompt
     flag "--fix"
 """
 run = """
@@ -16,7 +16,7 @@ bevy_lint --locked --all-features \
 [tasks.clippy]
 hide = true
 usage = """
-    arg "<pkg>" var=#true default=app
+    arg "<pkg>" var=#true default=bevy_command_prompt
     flag "--fix"
 """
 run = """

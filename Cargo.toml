@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = '0.18.0'
 bevy-inspector-egui = "0.36.0"
+bevy-test-harness = {git = "https://github.com/ada-x64/bevy-test-harness"}
 bevy_dylib={optional=true, version="0.18.0"}
 clap = { version = "4.5.53", features = ["derive"] }
 cosmic-text = "0.16.0"

@@ -9,6 +9,9 @@ use bevy::{
     text::LineHeight,
 };
 
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ConsoleSystems;
+
 pub fn handle_input(
     key_code_input: Res<ButtonInput<KeyCode>>,
     key_input: Res<ButtonInput<Key>>,
