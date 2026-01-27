@@ -103,10 +103,10 @@ mod test {
         for step in 0..3 {
             app.add_step(
                 step,
-                move |mut q: Query<(&mut ConsoleInputText, &ConsoleHistory)>,
+                move |mut q: Query<&mut ConsoleInputText>,
                       mut commands: Commands,
                       mut next_step: ResMut<NextState<Step>>| {
-                    if let Ok((mut input, history)) = q.single_mut() {
+                    if let Ok(mut input) = q.single_mut() {
                         input.text = step.to_string();
                         commands.write_message(key_input(
                             KeyCode::Enter,
